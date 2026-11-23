@@ -26,8 +26,12 @@ const dashboardContent = {
 
 export default function AuthScreen() {
   const [mode, setMode] = useState('login');
+  const verificationToken = new URLSearchParams(window.location.search).get('token') || '';
+  const isVerificationPage = window.location.pathname.toLowerCase().includes('verify-email');
+  const [verificationState, setVerificationState] = useState(isVerificationPage ? 'checking' : '');
+  const [verificationMessage, setVerificationMessage] = useState('');
   const [recovery, setRecovery] = useState(() => new URLSearchParams(window.location.search).has('token') ? 'reset' : '');
-  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('token') || '');
+  const [resetToken, setResetToken] = useState(() => !isVerificationPage ? (new URLSearchParams(window.location.search).get('token') || '') : '');
   const [recoveryEmail, setRecoveryEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
@@ -37,6 +41,15 @@ export default function AuthScreen() {
   const [signedIn, setSignedIn] = useState(null);
   const [form, setForm] = useState({ name: '', email: '', username: '', phone: '', shopName: '', password: '', confirm: '' });
   const update = (key, value) => setForm(prev => ({ ...prev, [key]: value }));
+  useEffect(() => {
+    if (!isVerificationPage) return;
+    if (!verificationToken) { setVerificationState('error'); setVerificationMessage('Verification link is missing its token.'); return; }
+    let cancelled = false;
+    fetch(API_BASE + '/api/auth/email/verify?token=' + encodeURIComponent(verificationToken))
+      .then(async response => { const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.message || 'Verification link is invalid or expired.'); if (!cancelled) { setVerificationState('success'); setVerificationMessage(data.message || 'Your email is verified. You may sign in.'); } })
+      .catch(error => { if (!cancelled) { setVerificationState('error'); setVerificationMessage(error.message || 'Verification failed.'); } });
+    return () => { cancelled = true; };
+  }, [isVerificationPage, verificationToken]);
   async function submit(e) {
     e.preventDefault(); setNotice(''); setBusy(true);
     try {
@@ -87,6 +100,7 @@ export default function AuthScreen() {
     sessionStorage.removeItem('vaarl_auth_token');
     setSignedIn(null); setNotice('Signed out.');
   }
+  if (isVerificationPage) return <section className="auth-wrap"><div className="auth-card"><h2>{verificationState === 'checking' ? 'Verifying Email…' : verificationState === 'success' ? 'Email Verified' : 'Verification Failed'}</h2><p className="auth-subtitle">{verificationState === 'checking' ? 'Please wait while VAARL confirms your email address.' : verificationMessage}</p>{verificationState !== 'checking' && <button className="auth-submit" type="button" onClick={() => { window.history.replaceState({}, '', window.location.pathname); window.location.href = window.location.pathname.replace(/verify-email.*$/i, '') || '/'; }}>{verificationState === 'success' ? 'Continue to Sign In' : 'Back to Sign In'} <span>→</span></button>}</div></section>;
   if (signedIn) return <RoleDashboard user={signedIn} signOut={signOut}/>;
   return (
     <section className="auth-wrap">
