@@ -18,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
@@ -93,9 +94,19 @@ public class AuthController {
             verification.setTo(email);
             verification.setSubject("Verify your VAARL email");
             verification.setText("Verify your email using this link (expires in 24 hours):\\n\\n" + verifyUrl + "?token=" + rawToken);
-            mail.send(verification);
-            audit.record(accountId, username, "ACCOUNT_REGISTERED", "Account registration completed; email verification pending.");
-            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Registration successful. Please check your email to verify your account."));
+            boolean emailSent = true;
+            try {
+                mail.send(verification);
+            } catch (MailException mailEx) {
+                emailSent = false;
+            }
+            audit.record(accountId, username, "ACCOUNT_REGISTERED",
+                emailSent ? "Account registration completed; email verification pending."
+                          : "Account registered, but verification email could not be sent; email verification pending.");
+            String message = emailSent
+                ? "Registration successful. Please check your email to verify your account."
+                : "Registration saved, but verification email could not be sent. Email verification is still required before login.";
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", message));
         } catch (DuplicateKeyException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", "Email or username is already registered."));
         }
