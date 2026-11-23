@@ -40,6 +40,8 @@ services:
         generateValue: true
       - key: VAARL_JWT_EXPIRES_SECONDS
         value: "3600"
+      - key: VAARL_EMAIL_VERIFICATION_URL
+        value: https://varsystem.onrender.com/verify-email
       - key: VAARL_SMTP_HOST
         value: smtp.example.com
       - key: VAARL_SMTP_PORT
