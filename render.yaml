@@ -51,7 +51,6 @@ services:
   - type: web
     name: vaarl-web
     runtime: static
-    plan: free
     rootDir: web-frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
