@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import org.springframework.util.StringUtils;
 import com.vaarl.web.auth.LoginRequest;
 import com.vaarl.web.auth.RegisterRequest;
 import com.vaarl.web.auth.JwtService;
@@ -29,13 +30,18 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         String role = request.role() == null ? "" : request.role().trim().toUpperCase();
+        String fullName = request.fullName().trim();
+        String email = request.email().trim().toLowerCase();
+        String username = request.username().trim();
+        String phone = request.phone().trim();
+        String shopName = request.shopName() == null ? "" : request.shopName().trim();
         if (!"VEHICLE_OWNER".equals(role) && !"REPAIR_SHOP".equals(role)) {
             return ResponseEntity.badRequest().body(Map.of("message", "Invalid account type."));
         }
         if (!request.password().equals(request.confirmPassword())) {
             return ResponseEntity.badRequest().body(Map.of("message", "Passwords do not match."));
         }
-        if ("REPAIR_SHOP".equals(role) && (request.shopName() == null || request.shopName().isBlank())) {
+        if ("REPAIR_SHOP".equals(role) && !StringUtils.hasText(shopName)) {
             return ResponseEntity.badRequest().body(Map.of("message", "Shop name is required."));
         }
         try {
@@ -45,15 +51,15 @@ public class AuthController {
                 (id, full_name, email, username, phone, account_role, shop_name, password_hash)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                accountId, request.fullName().trim(), request.email().trim().toLowerCase(),
-                request.username().trim(), request.phone().trim(), role,
-                "REPAIR_SHOP".equals(role) ? request.shopName().trim() : null,
+                accountId, fullName, email,
+                username, phone, role,
+                "REPAIR_SHOP".equals(role) ? shopName : null,
                 encoder.encode(request.password()));
             if ("REPAIR_SHOP".equals(role)) {
                 jdbc.update("""
                     INSERT INTO web_repair_shops (id, account_id, shop_name, location_text, phone, status)
                     VALUES (?, ?, ?, ?, ?, 'Active')
-                    """, UUID.randomUUID(), accountId, request.shopName().trim(), "", request.phone().trim());
+                    """, UUID.randomUUID(), accountId, shopName, "", phone);
             }
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Registration successful."));
         } catch (DuplicateKeyException ex) {
