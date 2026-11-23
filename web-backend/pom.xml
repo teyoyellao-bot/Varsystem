@@ -15,8 +15,7 @@
   <properties>
     <java.version>21</java.version>
   </properties>
-  <!-- XML dependency tags corrected; keep Maven POM well-formed. -->
-  <!-- POM XML corrected for Maven parsing -->
+  <!-- Maven dependencies -->
   <dependencies>
     <dependency>
       <groupId>org.springframework.boot</groupId>
