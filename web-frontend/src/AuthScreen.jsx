@@ -106,6 +106,55 @@ export default function AuthScreen() {
 }
 
 function RoleDashboard({ user, signOut }) {
+  const [notifications, setNotifications] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notificationError, setNotificationError] = useState('');
+  async function refreshNotifications() {
+    const token = sessionStorage.getItem('vaarl_auth_token');
+    if (!token) return;
+    try {
+      const headers = { Authorization: 'Bearer ' + token };
+      const [listResponse, countResponse] = await Promise.all([
+        fetch(API_BASE + '/api/notifications', { headers }),
+        fetch(API_BASE + '/api/notifications/unread-count', { headers })
+      ]);
+      const listData = await listResponse.json().catch(() => []);
+      const countData = await countResponse.json().catch(() => ({ count: 0 }));
+      if (!listResponse.ok) throw new Error(listData.message || 'Unable to load notifications.');
+      if (!countResponse.ok) throw new Error(countData.message || 'Unable to load unread count.');
+      setNotifications(Array.isArray(listData) ? listData : []);
+      setUnread(Number(countData.count || 0));
+      setNotificationError('');
+    } catch (err) { setNotificationError(err.message || 'Notification connection failed.'); }
+  }
+  async function markNotificationRead(id) {
+    const token = sessionStorage.getItem('vaarl_auth_token');
+    try {
+      const response = await fetch(API_BASE + '/api/notifications/' + encodeURIComponent(id) + '/read', {
+        method: 'PATCH', headers: { Authorization: 'Bearer ' + token }
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Could not mark notification as read.');
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      setUnread(prev => Math.max(0, prev - 1));
+    } catch (err) { setNotificationError(err.message || 'Update failed.'); }
+  }
+  async function markAllNotificationsRead() {
+    const token = sessionStorage.getItem('vaarl_auth_token');
+    try {
+      const response = await fetch(API_BASE + '/api/notifications/read-all', { method: 'PATCH', headers: { Authorization: 'Bearer ' + token } });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Could not mark notifications read.');
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnread(0); setNotificationError('');
+    } catch (err) { setNotificationError(err.message || 'Update failed.'); }
+  }
+  useEffect(() => {
+    refreshNotifications();
+    const timer = setInterval(refreshNotifications, 20000);
+    return () => clearInterval(timer);
+  }, [user?.username]);
   const [active, setActive] = useState('Dashboard');
   const role = user.role || 'VEHICLE_OWNER';
   const modules = dashboardContent[role] || dashboardContent.VEHICLE_OWNER;
@@ -118,7 +167,7 @@ function RoleDashboard({ user, signOut }) {
       <button className="dash-logout" onClick={signOut}>Sign Out</button>
     </aside>
     <div className="dashboard-main">
-      <header className="dash-header"><div><small>VAARL WEB / {roleLabels[role] || role}</small><h1>{active}</h1></div><div className="dash-user"><span>{(user.username||'U').slice(0,1).toUpperCase()}</span><div><b>{user.username}</b><small>{roleLabels[role] || role}</small></div></div></header>
+      <header className="dash-header"><div><small>VAARL WEB / {roleLabels[role] || role}</small><h1>{active}</h1></div><div className="dash-header-actions"><div className="notification-wrap"><button className="notification-bell" type="button" aria-label="Notifications" onClick={()=>{setNotificationOpen(v=>!v);refreshNotifications();}}>🔔{unread>0&&<span className="notification-badge">{unread>99?'99+':unread}</span>}</button>{notificationOpen&&<div className="notification-popover"><div className="notification-popover-head"><b>Notifications</b><button type="button" onClick={markAllNotificationsRead} disabled={unread===0}>Mark all read</button></div>{notificationError&&<p className="notification-error">{notificationError}</p>}{notifications.length===0?<p className="notification-empty">No notifications yet.</p>:notifications.map(n=><button key={n.id} className={'notification-item '+(n.read?'read':'unread')} type="button" onClick={()=>!n.read&&markNotificationRead(n.id)}><b>{n.title}</b><span>{n.message}</span><small>{n.createdAt?new Date(n.createdAt).toLocaleString():''}</small></button>)}</div>}</div><div className="dash-user"><span>{(user.username||'U').slice(0,1).toUpperCase()}</span><div><b>{user.username}</b><small>{roleLabels[role] || role}</small></div></div></div></header>
       {active === 'Dashboard' ? <>
       <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
       <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
