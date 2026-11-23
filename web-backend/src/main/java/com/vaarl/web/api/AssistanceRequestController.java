@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.transaction.annotation.Transactional;
 
+
 @RestController
 @RequestMapping("/api/assistance-requests")
 public class AssistanceRequestController {
@@ -46,6 +47,7 @@ public class AssistanceRequestController {
                 Map.entry("completedAt", rs.getTimestamp("completed_at") == null ? "" : rs.getTimestamp("completed_at").toString())
             ), account.id());
     }
+
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -91,17 +93,19 @@ public class AssistanceRequestController {
         return Map.of("message", "Assistance request submitted.", "requestId", requestId.toString(), "status", "Pending");
     }
 
+
     private Account ownerAccount(Authentication authentication) {
         List<Account> rows = jdbc.query("""
             SELECT id, full_name, username, phone, account_role FROM web_accounts
             WHERE lower(username) = lower(?) LIMIT 1
             """, (rs, row) -> new Account(rs.getObject("id", UUID.class), rs.getString("full_name"),
-                rs.getString("username"), rs.getString("phone"), rs.getString("account_role)), authentication.getName());
+                rs.getString("username"), rs.getString("phone"), rs.getString("account_role")), authentication.getName());
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Account not found.");
         Account account = rows.get(0);
         if (!"VEHICLE_OWNER".equals(account.role())) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only vehicle owner accounts can request assistance.");
         return account;
     }
+
 
     private record Account(UUID id, String fullName, String username, String phone, String role) {}
     public record RequestBody(String shopId, String mechanicId, String vehicle, String problem, String location, String details, String paymentMethod) {}
