@@ -41,7 +41,7 @@
       <artifactId>flyway-core</artifactId>
     </dependency>
     <dependency>
-      <group>org.flywaydb</groupId>
+      <groupId>org.flywaydb</groupId>
       <artifactId>flyway-database-postgresql</artifactId>
     </dependency>
     <dependency>
