@@ -187,3 +187,22 @@ footer { border-top: 1px solid rgba(255,255,255,.08); padding: 22px 28px; text-a
 .feedback-stars-display{font-size:26px;letter-spacing:2px;color:#f5bd45}
 .feedback-submitted p{margin:8px 0;color:#d6e0ed}
 .feedback-submitted small{color:#8ea3bd}
+
+/* Dashboard notification dropdown */
+.dash-header-actions { display:flex; align-items:center; gap:16px; }
+.notification-wrap { position:relative; }
+.notification-bell { position:relative; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.07); color:#fff; border-radius:12px; width:44px; height:44px; cursor:pointer; font-size:19px; }
+.notification-bell:hover { background:rgba(255,255,255,.14); }
+.notification-badge { position:absolute; top:-6px; right:-6px; min-width:19px; height:19px; padding:0 5px; display:grid; place-items:center; border-radius:999px; background:#ff4d5f; color:#fff; font-size:11px; font-weight:800; border:2px solid #061633; }
+.notification-popover { position:absolute; z-index:50; top:54px; right:0; width:min(360px, calc(100vw - 24px)); max-height:420px; overflow:auto; background:#fff; color:#17253c; border:1px solid #dce5f1; border-radius:16px; box-shadow:0 18px 48px rgba(0,0,0,.28); }
+.notification-popover-head { display:flex; justify-content:space-between; align-items:center; padding:14px 16px; border-bottom:1px solid #e8edf4; position:sticky; top:0; background:#fff; }
+.notification-popover-head button { border:0; background:transparent; color:#2563eb; font-size:12px; font-weight:700; cursor:pointer; }
+.notification-popover-head button:disabled { opacity:.45; cursor:default; }
+.notification-item { display:flex; flex-direction:column; align-items:flex-start; width:100%; gap:5px; padding:13px 16px; border:0; border-bottom:1px solid #edf1f6; text-align:left; cursor:pointer; color:#17253c; background:#fff; }
+.notification-item.unread { background:#f0f6ff; border-left:3px solid #2878ee; }
+.notification-item.read { background:#fff; }
+.notification-item span { font-size:13px; line-height:1.45; color:#536176; }
+.notification-item small { font-size:11px; color:#7c8798; }
+.notification-empty,.notification-error { padding:15px; margin:0; color:#6b7788; font-size:13px; }
+.notification-error { color:#b42332; }
+@media (max-width: 640px) { .dash-header-actions { gap:9px; } .notification-popover { right:-8px; } }
