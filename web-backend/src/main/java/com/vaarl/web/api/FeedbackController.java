@@ -8,6 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/feedback")
@@ -42,6 +43,7 @@ public class FeedbackController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     public Map<String,Object> submit(@RequestBody FeedbackBody body, Authentication auth){
         UUID owner=ownerId(auth);
         if(body.requestId()==null||body.requestId().isBlank())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Request ID is required.");
@@ -51,7 +53,7 @@ public class FeedbackController {
         UUID requestId;
         try{requestId=UUID.fromString(body.requestId());}catch(IllegalArgumentException ex){throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid request ID.");}
         List<UUID> shops=jdbc.query("""
-            SELECT shop_id FROM web_assistance_requests WHERE id=? AND requester_account_id=? AND status='Completed'
+            SELECT shop_id FROM web_assistance_requests WHERE id=? AND requester_account_id=? AND status='Completed' FOR UPDATE
             """,(rs,row)->rs.getObject("shop_id",UUID.class),requestId,owner);
         if(shops.isEmpty())throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Feedback is only allowed for your completed requests.");
         UUID shopId=shops.get(0);
