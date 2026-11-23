@@ -183,7 +183,7 @@ function RoleDashboard({ user, signOut }) {
       {active === 'Dashboard' ? <>
       <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
       <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
-      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Feedback & Ratings' ? <OwnerFeedback /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
+      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Feedback & Ratings' ? <OwnerFeedback /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : active === 'System Overview' ? <SystemStatusDashboard /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
       <footer className="dash-footer">VAARL Web System · Development Preview</footer>
     </div>
   </section>;
@@ -556,5 +556,46 @@ function OwnerFeedback(){
       {item.feedbackId?<div className="feedback-submitted"><div className="feedback-stars-display" aria-label={item.rating+' out of 5 stars'}>{'★'.repeat(item.rating)+'☆'.repeat(5-item.rating)}</div><p>{item.comment||'No written comment.'}</p><small>{item.submittedAt?new Date(item.submittedAt).toLocaleString():'Feedback submitted'}</small></div>:
       <div className="feedback-form"><label>Rating</label><div className="feedback-star-select" role="group" aria-label="Select star rating">{[1,2,3,4,5].map(n=><button key={n} type="button" className={(Number(ratings[item.requestId]||0)>=n?'selected':'')} aria-label={n+' stars'} onClick={()=>setRatings(prev=>({...prev,[item.requestId]:n}))}>★</button>)}</div><textarea maxLength={2000} rows={3} placeholder="Write your feedback (optional)" value={comments[item.requestId]||''} onChange={e=>setComments(prev=>({...prev,[item.requestId]:e.target.value}))}/><button className="feedback-submit" disabled={saving===item.requestId||!ratings[item.requestId]} onClick={()=>submit(item.requestId)}>{saving===item.requestId?'Submitting…':'Submit Feedback'}</button></div>}
     </article>)}</div>}
+  </div>;
+}
+
+
+function SystemStatusDashboard() {
+  const [status, setStatus] = useState({ api: 'checking', database: 'checking', checkedAt: null, error: '' });
+  async function checkStatus() {
+    const started = new Date();
+    try {
+      const [apiResponse, databaseResponse] = await Promise.all([
+        fetch(API_BASE + '/api/health'),
+        fetch(API_BASE + '/api/health/database')
+      ]);
+      const apiData = await apiResponse.json().catch(() => ({}));
+      const databaseData = await databaseResponse.json().catch(() => ({}));
+      setStatus({
+        api: apiResponse.ok && apiData.status === 'ok' ? 'online' : 'offline',
+        database: databaseResponse.ok && databaseData.connected === true ? 'connected' : 'offline',
+        checkedAt: started,
+        error: ''
+      });
+    } catch (err) {
+      setStatus({ api: 'offline', database: 'offline', checkedAt: started, error: 'Cannot reach VAARL backend. Check server connection and API URL.' });
+    }
+  }
+  useEffect(() => {
+    checkStatus();
+    const timer = setInterval(checkStatus, 10000);
+    return () => clearInterval(timer);
+  }, []);
+  const badge = (value) => value === 'online' || value === 'connected' ? 'status-good' : value === 'checking' ? 'status-checking' : 'status-bad';
+  const label = (value) => value === 'online' ? 'Online' : value === 'connected' ? 'Connected' : value === 'checking' ? 'Checking…' : 'Offline';
+  return <div className="system-status-module">
+    <div className="system-status-head"><div><h2>System Status</h2><p>Live health checks for VAARL Web API and database.</p></div><button type="button" onClick={checkStatus}>↻ Refresh</button></div>
+    <div className="system-status-grid">
+      <article className="system-status-card"><small>BACKEND API</small><h3>VAARL API</h3><span className={'system-status-badge '+badge(status.api)}><i/> {label(status.api)}</span><p>Health endpoint: /api/health</p></article>
+      <article className="system-status-card"><small>DATABASE</small><h3>PostgreSQL</h3><span className={'system-status-badge '+badge(status.database)}><i/> {label(status.database)}</span><p>Database query check: /api/health/database</p></article>
+      <article className="system-status-card"><small>WEB CLIENT</small><h3>VAARL Web</h3><span className="system-status-badge status-good"><i/> Loaded</span><p>Frontend is currently running in this browser.</p></article>
+    </div>
+    {status.error && <div className="system-status-error">{status.error}</div>}
+    <div className="system-status-foot">Automatic refresh every 10 seconds{status.checkedAt ? ' · Last checked: '+status.checkedAt.toLocaleTimeString() : ''}</div>
   </div>;
 }
