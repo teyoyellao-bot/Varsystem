@@ -141,3 +141,26 @@ footer { border-top: 1px solid rgba(255,255,255,.08); padding: 22px 28px; text-a
 .incoming-actions button{border:0;border-radius:10px;padding:11px 16px;background:#1769e8;color:#fff;font-weight:700;cursor:pointer}
 .incoming-actions button.incoming-decline{background:#fff;color:#b42335;border:1px solid #f0c7ce}
 .incoming-actions button:disabled{opacity:.6;cursor:wait}
+
+.mechanics-module{margin-top:24px}
+.mechanic-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:18px;margin:18px 0 24px;background:#0b1e3a;border:1px solid rgba(255,255,255,.1);border-radius:13px}
+.mechanic-form h3{grid-column:1/-1;margin:0}
+.mechanic-form label{display:grid;gap:6px;color:#cbd8e9;font-size:12px;font-weight:650}
+.mechanic-form input,.mechanic-form select{width:100%;background:#07152c;border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:11px 12px;color:#f5f8ff;font:inherit;font-size:13px}
+.mechanic-form-actions{grid-column:1/-1;display:flex;gap:10px}
+.mechanic-form-actions button,.mechanic-card-actions button{background:#176fe0;color:#fff;cursor:pointer}
+.mechanic-form-actions button.mechanic-cancel{background:rgba(255,255,255,.08);color:#dce8f8}
+.mechanics-list-title{margin:18px 0 12px}
+.mechanic-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+.mechanic-card{background:#0b1e3a;border:1px solid rgba(255,255,255,.1);border-radius:13px;padding:17px}
+.mechanic-card header{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mechanic-avatar{width:38px;height:38px;border-radius:11px;background:#176fe0;display:grid;place-items:center;font-weight:800}
+.mechanic-availability{font-size:11px;border-radius:20px;padding:6px 9px;color:#5fe0ac;background:rgba(47,190,137,.12);border:1px solid rgba(47,190,137,.25)}
+.mechanic-availability.busy{color:#ffd36b;background:rgba(255,190,75,.12);border-color:rgba(255,190,75,.22)}
+.mechanic-card h3{margin:14px 0 6px;font-size:16px}
+.mechanic-card p{margin:0;color:#aabbd3;font-size:13px}
+.mechanic-card-actions{display:flex;gap:8px;margin-top:15px}
+.mechanic-card-actions button{flex:1;padding:10px;border-radius:8px;font-size:12px}
+.mechanic-card-actions button.mechanic-remove{background:rgba(255,255,255,.06);color:#ffb9c2;border:1px solid rgba(255,115,135,.2)}
+@media(max-width:900px){.mechanic-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.mechanic-form{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.mechanic-cards,.mechanic-form{grid-template-columns:1fr}.mechanic-form h3,.mechanic-form-actions{grid-column:1}}
