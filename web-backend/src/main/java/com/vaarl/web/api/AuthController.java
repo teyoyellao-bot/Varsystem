@@ -2,7 +2,6 @@ package com.vaarl.web.api;
 
 import java.util.Map;
 import java.util.UUID;
-import java.sql.ResultSet;
 import java.util.Locale;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -20,12 +19,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.util.StringUtils;
 import com.vaarl.web.auth.LoginRequest;
 import com.vaarl.web.auth.RegisterRequest;
 import com.vaarl.web.auth.JwtService;
+import com.vaarl.web.service.AuditLogService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -35,15 +34,17 @@ public class AuthController {
     private final JwtService jwt;
     private final JavaMailSender mail;
     private final String verifyUrl;
+    private final AuditLogService audit;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     public AuthController(JdbcTemplate jdbc, PasswordEncoder encoder, JwtService jwt, JavaMailSender mail,
-            @Value("${vaarl.email-verification-url}") String verifyUrl) {
+            @Value("${vaarl.email-verification-url}") String verifyUrl, AuditLogService audit) {
         this.jdbc = jdbc;
         this.encoder = encoder;
         this.jwt = jwt;
         this.mail = mail;
         this.verifyUrl = verifyUrl;
+        this.audit = audit;
     }
 
     @PostMapping("/register")
@@ -92,6 +93,7 @@ public class AuthController {
             verification.setSubject("Verify your VAARL email");
             verification.setText("Verify your email using this link (expires in 24 hours):\\n\\n" + verifyUrl + "?token=" + rawToken);
             mail.send(verification);
+            audit.record(accountId, username, "ACCOUNT_REGISTERED", "Account registration completed; email verification pending.");
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Registration successful. Please check your email to verify your account."));
         } catch (DuplicateKeyException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", "Email or username is already registered."));
@@ -105,6 +107,7 @@ public class AuthController {
             SELECT failures, locked_until FROM web_login_attempts WHERE login_key=?
             """, (rs, rowNum) -> new LoginLock(rs.getInt("failures"), rs.getTimestamp("locked_until") == null ? null : rs.getTimestamp("locked_until").toInstant()), loginKey);
         if (!lockRows.isEmpty() && lockRows.get(0).lockedUntil() != null && lockRows.get(0).lockedUntil().isAfter(Instant.now())) {
+            audit.record(null, loginKey, "LOGIN_LOCKED", "Login attempt rejected while account identifier is locked.");
             long remaining = Math.max(1, java.time.Duration.between(Instant.now(), lockRows.get(0).lockedUntil()).toSeconds());
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .body(Map.of("message", "Too many failed login attempts. Please try again later.", "retryAfterSeconds", remaining));
@@ -120,6 +123,7 @@ public class AuthController {
                 rs.getString("account_role"), rs.getString("password_hash"), rs.getBoolean("email_verified")),
             request.usernameOrEmail().trim(), request.usernameOrEmail().trim());
         if (rows.isEmpty() || !encoder.matches(request.password(), rows.get(0).passwordHash())) {
+            audit.record(rows.isEmpty() ? null : UUID.fromString(rows.get(0).id()), loginKey, "LOGIN_FAILED", "Invalid username/email or password.");
             jdbc.update("""
                 INSERT INTO web_login_attempts(login_key, failures, locked_until, updated_at)
                 VALUES (?, 1, NULL, CURRENT_TIMESTAMP)
@@ -145,8 +149,10 @@ public class AuthController {
         jdbc.update("DELETE FROM web_login_attempts WHERE login_key=?", loginKey);
         Account a = rows.get(0);
         if (!a.emailVerified()) {
+            audit.record(UUID.fromString(a.id()), a.username(), "LOGIN_BLOCKED_UNVERIFIED", "Login denied because email verification is incomplete.");
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Please verify your email before signing in."));
         }
+        audit.record(UUID.fromString(a.id()), a.username(), "LOGIN_SUCCESS", "User signed in successfully.");
         String token = jwt.createToken(a.id(), a.role(), a.username());
         return ResponseEntity.ok(Map.of(
             "token", token,
