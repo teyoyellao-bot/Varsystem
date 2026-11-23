@@ -166,6 +166,8 @@ public class AuthController {
         } catch (NoSuchAlgorithmException ex) { throw new IllegalStateException("SHA-256 unavailable", ex); }
     }
 
+    private record LoginLock(int failures, Instant lockedUntil) {}
+
     private static final class LoginAttempt {
         private int failures;
         private long lockedUntil;
