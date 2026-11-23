@@ -1,0 +1,1 @@
+ALTER TABLE web_accounts ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT false;
