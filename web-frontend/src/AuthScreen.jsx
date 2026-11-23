@@ -122,7 +122,7 @@ function RoleDashboard({ user, signOut }) {
       {active === 'Dashboard' ? <>
       <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
       <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
-      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
+      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
       <footer className="dash-footer">VAARL Web System · Development Preview</footer>
     </div>
   </section>;
@@ -291,5 +291,66 @@ function ShopIncomingRequests() {
     {notice && <div className="auth-notice" role="status">{notice}</div>}
     {busy ? <div className="shops-state">Loading incoming requests…</div> : error ? <div className="shops-state shops-error">{error}</div> : items.length === 0 ? <div className="shops-state">No assistance requests have been sent to your shop.</div> :
       <div className="request-list">{items.map(r=><article className="request-card" key={r.id}><header><div><small>REQUEST ID</small><strong>{r.id}</strong></div><span className={'request-status '+String(r.status||'Pending').toLowerCase().replace(/[^a-z]/g,'-')}>{r.status}</span></header><h3>{r.customerName || 'Customer'}</h3><div className="request-detail-grid"><div><small>Phone</small><b>{r.customerPhone || '—'}</b></div><div><small>Vehicle</small><b>{r.vehicle || '—'}</b></div><div><small>Problem</small><b>{r.problem || '—'}</b></div><div><small>Assigned Mechanic</small><b>{r.mechanicName || 'No preference'}</b></div><div><small>Location</small><b>{r.location || '—'}</b></div><div><small>Payment</small><b>{r.paymentMethod || '—'}</b></div><div><small>Submitted</small><b>{r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '—'}</b></div></div>{r.details && <p className="request-extra">{r.details}</p>}{r.status === 'Pending' && <div className="incoming-actions"><button disabled={workingId===r.id} onClick={()=>decide(r.id,'accept')}>{workingId===r.id?'Updating…':'Accept Request'}</button><button disabled={workingId===r.id} className="incoming-decline" onClick={()=>decide(r.id,'decline')}>Decline</button></div>}</article>)}</div>}
+  </div>;
+}
+
+function ShopMechanics() {
+  const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState('');
+  const [form, setForm] = useState({name:'', phone:'', availability:'Available'});
+  async function load() {
+    setBusy(true); setError('');
+    try {
+      const token = sessionStorage.getItem('vaarl_auth_token');
+      const response = await fetch(API_BASE + '/api/shop/mechanics', {headers: token ? {Authorization:'Bearer '+token} : {}});
+      const data = await response.json().catch(()=>[]);
+      if(!response.ok) throw new Error(data.message || 'Unable to load mechanics.');
+      setItems(Array.isArray(data)?data:[]);
+    } catch(err) { setError(err.message || 'Mechanics API error.'); }
+    finally { setBusy(false); }
+  }
+  useEffect(()=>{load();},[]);
+  function resetForm(){setEditingId('');setForm({name:'',phone:'',availability:'Available'});}
+  function startEdit(m){setEditingId(m.id);setForm({name:m.name||'',phone:m.phone||'',availability:m.availability||'Available'});setNotice('');}
+  async function save(e){
+    e.preventDefault();setSaving(true);setNotice('');
+    try{
+      const token=sessionStorage.getItem('vaarl_auth_token');
+      const response=await fetch(API_BASE+(editingId?'/api/shop/mechanics/'+encodeURIComponent(editingId):'/api/shop/mechanics'),{
+        method:editingId?'PUT':'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(form)
+      });
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.message||'Unable to save mechanic.');
+      setNotice(editingId?'Mechanic updated.':'Mechanic added.');resetForm();await load();
+    }catch(err){setNotice(err.message||'Save failed.');}
+    finally{setSaving(false);}
+  }
+  async function remove(id){
+    if(!window.confirm('Remove this mechanic from your shop?'))return;
+    setNotice('');
+    try{
+      const token=sessionStorage.getItem('vaarl_auth_token');
+      const response=await fetch(API_BASE+'/api/shop/mechanics/'+encodeURIComponent(id),{method:'DELETE',headers:{Authorization:'Bearer '+token}});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.message||'Unable to remove mechanic.');
+      setNotice(data.message||'Mechanic removed.');await load();
+    }catch(err){setNotice(err.message||'Remove failed.');}
+  }
+  return <div className="mechanics-module">
+    <div className="request-toolbar"><div><h2>Mechanics Management</h2><p>Add mechanics and manage their availability for assistance requests.</p></div><div className="incoming-count">{items.length} mechanics</div></div>
+    {notice&&<div className="auth-notice" role="status">{notice}</div>}
+    <form className="mechanic-form" onSubmit={save}><h3>{editingId?'Edit Mechanic':'Add Mechanic'}</h3>
+      <label>Mechanic Name<input required maxLength={120} value={form.name} onChange={e=>setForm(p=>({...p,name:e.target.value}))} placeholder="Full name"/></label>
+      <label>Phone Number<input maxLength={40} value={form.phone} onChange={e=>setForm(p=>({...p,phone:e.target.value}))} placeholder="Contact number (optional)"/></label>
+      <label>Availability<select value={form.availability} onChange={e=>setForm(p=>({...p,availability:e.target.value}))}><option>Available</option><option>Busy</option></select></label>
+      <div className="mechanic-form-actions"><button type="submit" disabled={saving}>{saving?'Saving…':editingId?'Save Changes':'Add Mechanic'}</button>{editingId&&<button type="button" className="mechanic-cancel" onClick={resetForm}>Cancel Edit</button>}</div>
+    </form>
+    <h3 className="mechanics-list-title">Shop Mechanics</h3>
+    {busy?<div className="shops-state">Loading mechanics…</div>:error?<div className="shops-state shops-error">{error}</div>:items.length===0?<div className="shops-state">No mechanics added yet.</div>:
+      <div className="mechanic-cards">{items.map(m=><article className="mechanic-card" key={m.id}><header><div className="mechanic-avatar">{(m.name||'M').slice(0,1).toUpperCase()}</div><span className={'mechanic-availability '+String(m.availability).toLowerCase()}>{m.availability}</span></header><h3>{m.name}</h3><p>{m.phone||'No phone provided'}</p><div className="mechanic-card-actions"><button onClick={()=>startEdit(m)}>Edit</button><button className="mechanic-remove" onClick={()=>remove(m.id)}>Remove</button></div></article>)}</div>}
   </div>;
 }
