@@ -135,3 +135,9 @@ footer { border-top: 1px solid rgba(255,255,255,.08); padding: 22px 28px; text-a
 .request-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.request-detail-grid b{display:block;font-size:13px;color:#dce8f8;font-weight:600;overflow-wrap:anywhere}.request-extra{color:#aabbd3;font-size:13px;line-height:1.5}
 .request-status-track{display:flex;justify-content:space-between;gap:4px;margin-top:18px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)}.request-status-track span{font-size:10px;color:#647a98;padding:5px 3px;border-bottom:2px solid #253c5b;flex:1;text-align:center}.request-status-track span.step-current{color:#75b7ff;border-color:#388aff}
 @media(max-width:480px){.request-detail-grid{grid-template-columns:1fr}.request-card{padding:16px}.request-status-track span{font-size:9px}}
+
+.incoming-count{align-self:center;padding:9px 13px;border-radius:999px;background:#eaf1ff;color:#1854a6;font-weight:700;font-size:13px}
+.incoming-actions{display:flex;gap:10px;margin-top:18px}
+.incoming-actions button{border:0;border-radius:10px;padding:11px 16px;background:#1769e8;color:#fff;font-weight:700;cursor:pointer}
+.incoming-actions button.incoming-decline{background:#fff;color:#b42335;border:1px solid #f0c7ce}
+.incoming-actions button:disabled{opacity:.6;cursor:wait}
