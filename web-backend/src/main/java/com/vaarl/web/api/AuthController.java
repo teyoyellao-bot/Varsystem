@@ -10,6 +10,11 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.HexFormat;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,9 +22,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.MailException;
-import org.springframework.mail.javamail.JavaMailSender;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.util.StringUtils;
@@ -34,17 +37,24 @@ public class AuthController {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder encoder;
     private final JwtService jwt;
-    private final JavaMailSender mail;
+    private final ObjectMapper objectMapper;
+    private final String resendApiKey;
+    private final String emailFrom;
     private final String verifyUrl;
+    private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final AuditLogService audit;
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    public AuthController(JdbcTemplate jdbc, PasswordEncoder encoder, JwtService jwt, JavaMailSender mail,
+    public AuthController(JdbcTemplate jdbc, PasswordEncoder encoder, JwtService jwt, ObjectMapper objectMapper,
+            @Value("${vaarl.resend-api-key:}") String resendApiKey,
+            @Value("${vaarl.email-from:onboarding@resend.dev}") String emailFrom,
             @Value("${vaarl.email-verification-url}") String verifyUrl, AuditLogService audit) {
         this.jdbc = jdbc;
         this.encoder = encoder;
         this.jwt = jwt;
-        this.mail = mail;
+        this.objectMapper = objectMapper;
+        this.resendApiKey = resendApiKey;
+        this.emailFrom = emailFrom;
         this.verifyUrl = verifyUrl;
         this.audit = audit;
     }
@@ -90,16 +100,8 @@ public class AuthController {
             String tokenHash = sha256(rawToken);
             jdbc.update("INSERT INTO web_email_verification_tokens(id, account_id, token_hash, expires_at) VALUES (?, ?, ?, ?)",
                 UUID.randomUUID(), accountId, tokenHash, Timestamp.from(Instant.now().plusSeconds(24 * 60 * 60)));
-            SimpleMailMessage verification = new SimpleMailMessage();
-            verification.setTo(email);
-            verification.setSubject("Verify your VAARL email");
-            verification.setText("Verify your email using this link (expires in 24 hours):\\n\\n" + verifyUrl + "?token=" + rawToken);
-            boolean emailSent = true;
-            try {
-                mail.send(verification);
-            } catch (MailException mailEx) {
-                emailSent = false;
-            }
+            String verificationLink = verifyUrl + "?token=" + rawToken;
+            boolean emailSent = sendVerificationEmail(email, verificationLink);
             audit.record(accountId, username, "ACCOUNT_REGISTERED",
                 emailSent ? "Account registration completed; email verification pending."
                           : "Account registered, but verification email could not be sent; email verification pending.");
@@ -170,6 +172,28 @@ public class AuthController {
             "token", token,
             "user", Map.of("id", a.id(), "username", a.username(), "email", a.email(), "role", a.role())
         ));
+    }
+
+    private boolean sendVerificationEmail(String recipient, String verificationLink) {
+        if (!StringUtils.hasText(resendApiKey) || !StringUtils.hasText(emailFrom)) return false;
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                "from", emailFrom,
+                "to", recipient,
+                "subject", "Verify your VAARL email",
+                "html", "<p>Verify your email using the link below. This link expires in 24 hours.</p><p><a href=\"" + verificationLink + "\">Verify Email</a></p>"
+            ));
+            HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.resend.com/emails"))
+                .timeout(Duration.ofSeconds(20))
+                .header("Authorization", "Bearer " + resendApiKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
+                .build();
+            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            return response.statusCode() >= 200 && response.statusCode() < 300;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     private static String sha256(String value) {
