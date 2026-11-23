@@ -12,9 +12,15 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.nio.charset.StandardCharsets;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -25,15 +31,23 @@ import com.vaarl.web.service.AuditLogService;
 @RequestMapping("/api/auth/email")
 public class EmailVerificationController {
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final Logger log = LoggerFactory.getLogger(EmailVerificationController.class);
+    private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private final JdbcTemplate jdbc;
-    private final JavaMailSender mail;
+    private final ObjectMapper objectMapper;
+    private final String resendApiKey;
+    private final String emailFrom;
     private final String verifyUrl;
     private final AuditLogService audit;
 
-    public EmailVerificationController(JdbcTemplate jdbc, JavaMailSender mail,
+    public EmailVerificationController(JdbcTemplate jdbc, ObjectMapper objectMapper,
+            @Value("${vaarl.resend-api-key:}") String resendApiKey,
+            @Value("${vaarl.email-from:onboarding@resend.dev}") String emailFrom,
             @Value("${vaarl.email-verification-url}") String verifyUrl, AuditLogService audit) {
         this.jdbc = jdbc;
-        this.mail = mail;
+        this.objectMapper = objectMapper;
+        this.resendApiKey = resendApiKey;
+        this.emailFrom = emailFrom;
         this.verifyUrl = verifyUrl;
         this.audit = audit;
     }
@@ -59,12 +73,28 @@ public class EmailVerificationController {
             INSERT INTO web_email_verification_tokens(id, account_id, token_hash, expires_at)
             VALUES (?, ?, ?, ?)
             """, UUID.randomUUID(), accountId, hash(raw), Instant.now().plusSeconds(24 * 60 * 60));
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(email);
-        message.setSubject("Verify your VAARL email");
-        message.setText("Verify your email using this link (expires in 24 hours):\n\n"
-            + verifyUrl + "?token=" + raw);
-        mail.send(message);
+        if (!StringUtils.hasText(resendApiKey) || !StringUtils.hasText(emailFrom)) {
+            throw new IllegalStateException("Resend email settings are missing.");
+        }
+        String link = verifyUrl + "?token=" + raw;
+        String payload = objectMapper.writeValueAsString(Map.of(
+            "from", emailFrom,
+            "to", email,
+            "subject", "Verify your VAARL email",
+            "html", "<p>Verify your email using the link below. This link expires in 24 hours.</p><p><a href=\"" + link + "\\">Verify Email</a></p>"
+        ));
+        HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.resend.com/emails"))
+            .timeout(Duration.ofSeconds(20))
+            .header("Authorization", "Bearer " + resendApiKey)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
+            .build();
+        HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            log.warn("Resend rejected verification email (HTTP {}): {}", response.statusCode(), response.body());
+            throw new IllegalStateException("Resend API rejected the email request.");
+        }
+        log.info("Resend accepted verification email (HTTP {}).", response.statusCode());
     }
 
     @GetMapping("/verify")
@@ -97,7 +127,7 @@ public class EmailVerificationController {
             """, (rs, n) -> new Account(rs.getString("id"), rs.getString("email")), email);
         if (!accounts.isEmpty()) {
             try { sendToken(accounts.get(0).id(), accounts.get(0).email()); audit.record(UUID.fromString(accounts.get(0).id()), null, "VERIFICATION_EMAIL_RESENT", "Verification email resent."); }
-            catch (MailException ignored) { /* keep response generic */ }
+            catch (Exception ex) { log.warn("Verification resend failed: {}", ex.toString()); }
         }
         return ResponseEntity.ok(Map.of("message", generic));
     }
