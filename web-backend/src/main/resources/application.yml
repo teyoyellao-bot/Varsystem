@@ -28,3 +28,4 @@ vaarl:
     secret: ${VAARL_JWT_SECRET}
     expires-seconds: 3600
   password-reset-url: ${VAARL_PASSWORD_RESET_URL:http://localhost:5173/reset-password}
+  email-verification-url: ${VAARL_EMAIL_VERIFICATION_URL:http://localhost:5173/verify-email}
