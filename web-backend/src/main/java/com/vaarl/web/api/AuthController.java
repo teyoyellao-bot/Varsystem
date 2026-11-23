@@ -2,6 +2,7 @@ package com.vaarl.web.api;
 
 import java.util.Map;
 import java.util.UUID;
+import java.sql.ResultSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.Locale;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.util.StringUtils;
 import com.vaarl.web.auth.LoginRequest;
@@ -54,8 +56,8 @@ public class AuthController {
             UUID accountId = UUID.randomUUID();
             jdbc.update("""
                 INSERT INTO web_accounts
-                (id, full_name, email, username, phone, account_role, shop_name, password_hash)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (id, full_name, email, username, phone, account_role, shop_name, password_hash, email_verified)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, false)
                 """,
                 accountId, fullName, email,
                 username, phone, role,
@@ -90,14 +92,14 @@ public class AuthController {
             }
         }
         var rows = jdbc.query("""
-            SELECT id, username, email, account_role, password_hash
+            SELECT id, username, email, account_role, password_hash, email_verified
             FROM web_accounts
             WHERE lower(username) = lower(?) OR lower(email) = lower(?)
             LIMIT 1
             """,
             (rs, rowNum) -> new Account(
                 rs.getString("id"), rs.getString("username"), rs.getString("email"),
-                rs.getString("account_role"), rs.getString("password_hash")),
+                rs.getString("account_role"), rs.getString("password_hash"), rs.getBoolean("email_verified")),
             request.usernameOrEmail().trim(), request.usernameOrEmail().trim());
         if (rows.isEmpty() || !encoder.matches(request.password(), rows.get(0).passwordHash())) {
             synchronized (attempt) {
@@ -116,6 +118,9 @@ public class AuthController {
         }
         loginAttempts.remove(loginKey, attempt);
         Account a = rows.get(0);
+        if (!a.emailVerified()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Please verify your email before signing in."));
+        }
         String token = jwt.createToken(a.id(), a.role(), a.username());
         return ResponseEntity.ok(Map.of(
             "token", token,
@@ -128,5 +133,5 @@ public class AuthController {
         private long lockedUntil;
     }
 
-    private record Account(String id, String username, String email, String role, String passwordHash) {}
+    private record Account(String id, String username, String email, String role, String passwordHash, boolean emailVerified) {}
 }
