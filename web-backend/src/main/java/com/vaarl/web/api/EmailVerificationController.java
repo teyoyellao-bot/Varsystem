@@ -124,11 +124,16 @@ public class EmailVerificationController {
         List<Account> accounts = jdbc.query("""
             SELECT id, email FROM web_accounts WHERE lower(email)=lower(?) AND email_verified=false LIMIT 1
             """, (rs, n) -> new Account(rs.getString("id"), rs.getString("email")), email);
-        if (!accounts.isEmpty()) {
-            try { sendToken(accounts.get(0).id(), accounts.get(0).email()); audit.record(UUID.fromString(accounts.get(0).id()), null, "VERIFICATION_EMAIL_RESENT", "Verification email resent."); }
-            catch (Exception ex) { log.warn("Verification resend failed: {}", ex.toString()); }
+        if (accounts.isEmpty()) return ResponseEntity.ok(Map.of("message", generic));
+        Account account = accounts.get(0);
+        try {
+            sendToken(account.id(), account.email());
+            audit.record(UUID.fromString(account.id()), null, "VERIFICATION_EMAIL_RESENT", "Verification email resent.");
+            return ResponseEntity.ok(Map.of("message", "Verification email sent. Please check your inbox and spam folder."));
+        } catch (Exception ex) {
+            log.warn("Verification resend failed: {}", ex.toString());
+            return ResponseEntity.status(502).body(Map.of("message", "We couldn't send the verification email. Please try again later or contact support."));
         }
-        return ResponseEntity.ok(Map.of("message", generic));
     }
 
     private record Token(String id, String accountId) {}
