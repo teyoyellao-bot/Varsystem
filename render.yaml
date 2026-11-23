@@ -8,11 +8,10 @@ databases:
 services:
   - type: web
     name: vaarl-api
-    runtime: java
+    runtime: docker
     plan: free
-    rootDir: web-backend
-    buildCommand: mvn clean package -DskipTests
-    startCommand: java -jar target/*.jar
+    dockerfilePath: ./web-backend/Dockerfile
+    dockerContext: ./web-backend
     healthCheckPath: /api/health
     envVars:
       - key: VAARL_API_PORT
