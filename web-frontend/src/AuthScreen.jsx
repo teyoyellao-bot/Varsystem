@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const API_BASE = import.meta.env.VITE_VAARL_API_URL || 'http://localhost:8080';
+const API_URL = import.meta.env.VITE_VAARL_API_URL || 'http://localhost:8080';\nconst API_BASE = API_URL.startsWith('http') ? API_URL.replace(/\\/$/, '') : 'https://' + API_URL.replace(/\\/$/, '');
 
 const roleLabels = { VEHICLE_OWNER: 'Vehicle Owner', REPAIR_SHOP: 'Repair Shop', ADMIN: 'Administrator' };
 const dashboardContent = {
