@@ -64,7 +64,9 @@ export default function AuthScreen() {
         ? { fullName: form.name, email: form.email, username: form.username, phone: form.phone, shopName: role === 'REPAIR_SHOP' ? form.shopName : null, role, password: form.password, confirmPassword: form.confirm }
         : { usernameOrEmail: form.username, password: form.password };
       const response = await fetch(API_BASE + endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const data = await response.json().catch(() => ({}));
+      const rawResponse = await response.text();
+      let data = {};
+      try { data = rawResponse ? JSON.parse(rawResponse) : {}; } catch { data = { message: rawResponse.trim().slice(0, 180) }; }
       if (!response.ok) {
         const serverMessage = data.message || data.error || data.detail;
         const validationDetails = data.errors && typeof data.errors === 'object'
