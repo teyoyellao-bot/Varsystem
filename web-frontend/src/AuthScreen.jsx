@@ -2,6 +2,28 @@ import { useState } from 'react';
 
 const API_BASE = import.meta.env.VITE_VAARL_API_URL || 'http://localhost:8080';
 
+const roleLabels = { VEHICLE_OWNER: 'Vehicle Owner', REPAIR_SHOP: 'Repair Shop', ADMIN: 'Administrator' };
+const dashboardContent = {
+  VEHICLE_OWNER: [
+    ['Find Repair Shops', 'Explore repair shops and their services.'],
+    ['My Assistance Requests', 'Review the status of your vehicle assistance requests.'],
+    ['Request History', 'See your past assistance activity.'],
+    ['Feedback & Ratings', 'Rate completed assistance.']
+  ],
+  REPAIR_SHOP: [
+    ['Incoming Requests', 'Review assistance requests sent to your shop.'],
+    ['Mechanics', 'Manage mechanic profiles and availability.'],
+    ['Service Jobs', 'Track accepted and ongoing jobs.'],
+    ['Shop History', 'Review completed assistance records.']
+  ],
+  ADMIN: [
+    ['Account Management', 'Manage registered vehicle owners and repair shops.'],
+    ['Shop Verification', 'Review repair shop account information.'],
+    ['Support Requests', 'Review user support requests.'],
+    ['System Overview', 'Review system activity and administration.']
+  ]
+};
+
 export default function AuthScreen() {
   const [mode, setMode] = useState('login');
   const [role, setRole] = useState('VEHICLE_OWNER');
@@ -25,13 +47,17 @@ export default function AuthScreen() {
         setMode('login'); setForm(prev => ({ ...prev, password: '', confirm: '' }));
       } else {
         sessionStorage.setItem('vaarl_auth_token', data.token);
-        setSignedIn(data.user); setNotice('Signed in successfully.');
+        setSignedIn(data.user); setNotice('');
       }
     } catch (err) {
       setNotice(err.message || 'Unable to connect to VAARL API.');
     } finally { setBusy(false); }
   }
-  if (signedIn) return <section className="auth-wrap"><div className="auth-intro"><div className="eyebrow">VAARL WEB</div><h1>Welcome,<br/><span>{signedIn.username}</span></h1><p>Account role: {signedIn.role}</p></div><div className="auth-card"><h2>Signed in</h2><p className="auth-subtitle">Your account login was successful. Dashboard modules are the next development step.</p><div className="auth-notice">{notice}</div><button className="auth-submit" onClick={() => {sessionStorage.removeItem('vaarl_auth_token');setSignedIn(null);setNotice('You have signed out.');}}>Sign Out</button></div></section>;
+  function signOut() {
+    sessionStorage.removeItem('vaarl_auth_token');
+    setSignedIn(null); setNotice('Signed out.');
+  }
+  if (signedIn) return <RoleDashboard user={signedIn} signOut={signOut}/>;
   return (
     <section className="auth-wrap">
       <div className="auth-intro">
@@ -77,4 +103,27 @@ export default function AuthScreen() {
       </div>
     </section>
   );
+}
+
+function RoleDashboard({ user, signOut }) {
+  const [active, setActive] = useState('Dashboard');
+  const role = user.role || 'VEHICLE_OWNER';
+  const modules = dashboardContent[role] || dashboardContent.VEHICLE_OWNER;
+  const menu = ['Dashboard', ...modules.map(m => m[0]), 'My Profile'];
+  return <section className="role-dashboard">
+    <aside className="dashboard-sidebar">
+      <div className="dash-brand"><span>V</span><div>VAARL <small>WEB</small></div></div>
+      <div className="dash-role">{roleLabels[role] || role}</div>
+      <nav>{menu.map(item=><button key={item} className={active===item?'dash-nav-active':''} onClick={()=>setActive(item)}>{item}</button>)}</nav>
+      <button className="dash-logout" onClick={signOut}>Sign Out</button>
+    </aside>
+    <div className="dashboard-main">
+      <header className="dash-header"><div><small>VAARL WEB / {roleLabels[role] || role}</small><h1>{active}</h1></div><div className="dash-user"><span>{(user.username||'U').slice(0,1).toUpperCase()}</span><div><b>{user.username}</b><small>{roleLabels[role] || role}</small></div></div></header>
+      {active === 'Dashboard' ? <>
+      <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
+      <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
+      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
+      <footer className="dash-footer">VAARL Web System · Development Preview</footer>
+    </div>
+  </section>;
 }
