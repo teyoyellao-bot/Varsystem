@@ -246,7 +246,7 @@ function RoleDashboard({ user, signOut }) {
       {active === 'Dashboard' ? <>
       <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
       <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
-      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Feedback & Ratings' ? <OwnerFeedback /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : active === 'System Overview' ? <SystemStatusDashboard /> : active === 'Audit Logs' && role === 'ADMIN' ? <AdminAuditLogs /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
+      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Feedback & Ratings' ? <OwnerFeedback /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : active === 'System Overview' ? <SystemStatusDashboard /> : active === 'Account Management' && role === 'ADMIN' ? <AdminAccountManagement /> : active === 'Audit Logs' && role === 'ADMIN' ? <AdminAuditLogs /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
       <footer className="dash-footer">VAARL Web System · Development Preview</footer>
     </div>
   </section>;
@@ -660,6 +660,40 @@ function SystemStatusDashboard() {
     </div>
     {status.error && <div className="system-status-error">{status.error}</div>}
     <div className="system-status-foot">Automatic refresh every 10 seconds{status.checkedAt ? ' · Last checked: '+status.checkedAt.toLocaleTimeString() : ''}</div>
+  </div>;
+}
+
+function AdminAccountManagement() {
+  const [accounts,setAccounts]=useState([]);
+  const [total,setTotal]=useState(0);
+  const [page,setPage]=useState(0);
+  const [query,setQuery]=useState('');
+  const [appliedQuery,setAppliedQuery]=useState('');
+  const [busy,setBusy]=useState(true);
+  const [error,setError]=useState('');
+  const size=50;
+  async function load(nextPage=page,search=appliedQuery){
+    setBusy(true);setError('');
+    try{
+      const token=sessionStorage.getItem('vaarl_auth_token');
+      const url=new URL(API_BASE+'/api/admin/audit-logs/accounts');
+      url.searchParams.set('page',String(nextPage));url.searchParams.set('size',String(size));
+      if(search.trim())url.searchParams.set('q',search.trim());
+      const response=await fetch(url,{headers:{Authorization:'Bearer '+token}});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.message||'Unable to load accounts.');
+      setAccounts(Array.isArray(data.accounts)?data.accounts:[]);
+      setTotal(Number(data.total||0));setPage(Number(data.page||0));setAppliedQuery(search);
+    }catch(err){setError(err.message||'Account management request failed.');}
+    finally{setBusy(false);}
+  }
+  useEffect(()=>{load(0,'');},[]);
+  return <div className="audit-module">
+    <div className="audit-head"><div><h2>Account Management</h2><p>Review registered Vehicle Owner and Repair Shop accounts.</p></div><button type="button" onClick={()=>load(page,appliedQuery)}>↻ Refresh</button></div>
+    <div className="audit-toolbar"><label>Search accounts<input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Name, username, email, or shop"/></label><button type="button" onClick={()=>load(0,query)}>Search</button><div className="audit-total">{total.toLocaleString()} accounts</div></div>
+    {busy?<div className="shops-state">Loading accounts…</div>:error?<div className="shops-state shops-error">{error}</div>:accounts.length===0?<div className="shops-state">No registered accounts found.</div>:
+    <div className="audit-table-wrap"><table className="audit-table"><thead><tr><th>Account</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th><th>Shop</th><th>Registered</th></tr></thead><tbody>{accounts.map(a=><tr key={a.id}><td>{a.full_name||'—'}</td><td>{a.username||'—'}</td><td>{a.email||'—'}</td><td>{a.phone||'—'}</td><td>{String(a.account_role||'').replaceAll('_',' ')}</td><td>{a.shop_name||'—'}</td><td>{a.created_at?new Date(a.created_at).toLocaleString():'—'}</td></tr>)}</tbody></table></div>}
+    <div className="audit-pagination"><span>Page {page+1} of {Math.max(1,Math.ceil(total/size))}</span><div><button type="button" disabled={busy||page===0} onClick={()=>load(page-1,appliedQuery)}>← Previous</button><button type="button" disabled={busy||(page+1)*size>=total} onClick={()=>load(page+1,appliedQuery)}>Next →</button></div></div>
   </div>;
 }
 
