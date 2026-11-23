@@ -8,6 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/shop/jobs")
@@ -46,6 +47,7 @@ public class ShopServiceJobsController {
     }
 
     @PatchMapping("/{requestId}/status")
+    @Transactional
     public Map<String,Object> status(@PathVariable UUID requestId,@RequestBody StatusBody body,Authentication auth) {
         UUID shopId=shopId(auth);
         String target=body==null||body.status()==null?"":body.status().trim();
