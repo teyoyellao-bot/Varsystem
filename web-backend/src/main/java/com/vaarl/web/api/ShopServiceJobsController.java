@@ -53,20 +53,24 @@ public class ShopServiceJobsController {
         String target=body==null||body.status()==null?"":body.status().trim();
         if(!target.equals("On Going")&&!target.equals("Completed"))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Status must be On Going or Completed.");
-        List<String> current=jdbc.query("SELECT status FROM web_assistance_requests WHERE id=? AND shop_id=?",
-            (rs,row)->rs.getString("status"),requestId,shopId);
+        List<Map<String,Object>> current=jdbc.query("SELECT status, mechanic_id FROM web_assistance_requests WHERE id=? AND shop_id=? FOR UPDATE",
+            (rs,row)->Map.of("status",safe(rs.getString("status")),"mechanicId",rs.getObject("mechanic_id")==null?"":rs.getObject("mechanic_id").toString()),requestId,shopId);
         if(current.isEmpty())throw new ResponseStatusException(HttpStatus.NOT_FOUND,"Service job not found.");
-        String old=current.get(0);
+        String old=(String)current.get(0).get("status");
+        String mechanicId=(String)current.get(0).get("mechanicId");
         int updated;
         if(target.equals("On Going")&&old.equals("Accepted")){
-            updated=jdbc.update("UPDATE web_assistance_requests SET status='On Going' WHERE id=? AND shop_id=? AND status='Accepted'",requestId,shopId);
-            if(updated==1){
-                jdbc.update("UPDATE web_mechanics SET availability='Busy' WHERE id=(SELECT mechanic_id FROM web_assistance_requests WHERE id=?)",requestId);
+            if(!mechanicId.isBlank()){
+                int claimed=jdbc.update("UPDATE web_mechanics SET availability='Busy' WHERE id=? AND shop_id=? AND lower(availability)='available'",
+                    UUID.fromString(mechanicId),shopId);
+                if(claimed==0)throw new ResponseStatusException(HttpStatus.CONFLICT,"Assigned mechanic is no longer available.");
             }
+            updated=jdbc.update("UPDATE web_assistance_requests SET status='On Going' WHERE id=? AND shop_id=? AND status='Accepted'",requestId,shopId);
         } else if(target.equals("Completed")&&old.equals("On Going")){
             updated=jdbc.update("UPDATE web_assistance_requests SET status='Completed', completed_at=CURRENT_TIMESTAMP WHERE id=? AND shop_id=? AND status='On Going'",requestId,shopId);
-            if(updated==1){
-                jdbc.update("UPDATE web_mechanics SET availability='Available' WHERE id=(SELECT mechanic_id FROM web_assistance_requests WHERE id=?)",requestId);
+            if(updated==1&&!mechanicId.isBlank()){
+                jdbc.update("UPDATE web_mechanics SET availability='Available' WHERE id=? AND shop_id=? AND lower(availability)='busy'",
+                    UUID.fromString(mechanicId),shopId);
             }
         } else {
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Invalid status transition. Accepted jobs can start; ongoing jobs can be completed.");
