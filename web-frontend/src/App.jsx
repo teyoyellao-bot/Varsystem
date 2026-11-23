@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import AuthScreen from './AuthScreen.jsx';
 
 const API_URL = import.meta.env.VITE_VAARL_API_URL || 'http://localhost:8080';
-const API_BASE = API_URL.startsWith('http') ? API_URL.replace(/\\/$/, '') : 'https://' + API_URL.replace(/\\/$/, '');
+const API_BASE = API_URL.startsWith('http') ? API_URL.replace(/\/$/, '') : 'https://' + API_URL.replace(/\/$/, '');
 
 export default function App() {
   const [api, setApi] = useState({ loading: true, ok: false, message: 'Checking backend…' });
@@ -34,6 +34,7 @@ export default function App() {
     const timer = window.setInterval(checkStatus, 30000);
     return () => { active = false; window.clearInterval(timer); };
   }, []);
+
 
   return <main className="page">
     <header className="topbar">
