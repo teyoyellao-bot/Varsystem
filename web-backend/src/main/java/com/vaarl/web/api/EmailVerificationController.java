@@ -19,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import com.vaarl.web.service.AuditLogService;
 
 @RestController
 @RequestMapping("/api/auth/email")
@@ -27,12 +28,14 @@ public class EmailVerificationController {
     private final JdbcTemplate jdbc;
     private final JavaMailSender mail;
     private final String verifyUrl;
+    private final AuditLogService audit;
 
     public EmailVerificationController(JdbcTemplate jdbc, JavaMailSender mail,
-            @Value("${vaarl.email-verification-url}") String verifyUrl) {
+            @Value("${vaarl.email-verification-url}") String verifyUrl, AuditLogService audit) {
         this.jdbc = jdbc;
         this.mail = mail;
         this.verifyUrl = verifyUrl;
+        this.audit = audit;
     }
 
     private static String token() {
@@ -80,6 +83,7 @@ public class EmailVerificationController {
         jdbc.update("UPDATE web_accounts SET email_verified=true WHERE id=?", t.accountId());
         jdbc.update("UPDATE web_email_verification_tokens SET used_at=CURRENT_TIMESTAMP WHERE id=?", t.id());
         jdbc.update("UPDATE web_email_verification_tokens SET used_at=CURRENT_TIMESTAMP WHERE account_id=? AND used_at IS NULL", t.accountId());
+        audit.record(UUID.fromString(t.accountId()), null, "EMAIL_VERIFIED", "Account email verification completed.");
         return ResponseEntity.ok(Map.of("message", "Email verified. You may sign in."));
     }
 
@@ -92,7 +96,7 @@ public class EmailVerificationController {
             SELECT id, email FROM web_accounts WHERE lower(email)=lower(?) AND email_verified=false LIMIT 1
             """, (rs, n) -> new Account(rs.getString("id"), rs.getString("email")), email);
         if (!accounts.isEmpty()) {
-            try { sendToken(accounts.get(0).id(), accounts.get(0).email()); }
+            try { sendToken(accounts.get(0).id(), accounts.get(0).email()); audit.record(UUID.fromString(accounts.get(0).id()), null, "VERIFICATION_EMAIL_RESENT", "Verification email resent."); }
             catch (MailException ignored) { /* keep response generic */ }
         }
         return ResponseEntity.ok(Map.of("message", generic));
