@@ -1,0 +1,18 @@
+server:
+  port: ${VAARL_API_PORT:8080}
+
+spring:
+  datasource:
+    url: ${VAARL_DB_URL:jdbc:postgresql://localhost:5432/vaarl_db}
+    username: ${VAARL_DB_USER}
+    password: ${VAARL_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
+vaarl:
+  jwt:
+    secret: ${VAARL_JWT_SECRET}
+    expires-seconds: 3600
