@@ -20,7 +20,8 @@ const dashboardContent = {
     ['Account Management', 'Manage registered vehicle owners and repair shops.'],
     ['Shop Verification', 'Review repair shop account information.'],
     ['Support Requests', 'Review user support requests.'],
-    ['System Overview', 'Review system activity and administration.']
+    ['System Overview', 'Review system activity and administration.'],
+    ['Audit Logs', 'Review recorded account and security activity.']
   ]
 };
 
@@ -237,7 +238,7 @@ function RoleDashboard({ user, signOut }) {
       {active === 'Dashboard' ? <>
       <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
       <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
-      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Feedback & Ratings' ? <OwnerFeedback /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : active === 'System Overview' ? <SystemStatusDashboard /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
+      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Feedback & Ratings' ? <OwnerFeedback /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : active === 'System Overview' ? <SystemStatusDashboard /> : active === 'Audit Logs' && role === 'ADMIN' ? <AdminAuditLogs /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
       <footer className="dash-footer">VAARL Web System · Development Preview</footer>
     </div>
   </section>;
@@ -651,5 +652,38 @@ function SystemStatusDashboard() {
     </div>
     {status.error && <div className="system-status-error">{status.error}</div>}
     <div className="system-status-foot">Automatic refresh every 10 seconds{status.checkedAt ? ' · Last checked: '+status.checkedAt.toLocaleTimeString() : ''}</div>
+  </div>;
+}
+
+function AdminAuditLogs() {
+  const [logs,setLogs]=useState([]);
+  const [total,setTotal]=useState(0);
+  const [page,setPage]=useState(0);
+  const [eventType,setEventType]=useState('');
+  const [busy,setBusy]=useState(true);
+  const [error,setError]=useState('');
+  const size=50;
+  async function load(nextPage=page,filter=eventType){
+    setBusy(true);setError('');
+    try{
+      const token=sessionStorage.getItem('vaarl_auth_token');
+      const url=new URL(API_BASE+'/api/admin/audit-logs');
+      url.searchParams.set('page',String(nextPage));url.searchParams.set('size',String(size));
+      if(filter)url.searchParams.set('eventType',filter);
+      const response=await fetch(url,{headers:{Authorization:'Bearer '+token}});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.message||'Unable to load audit logs.');
+      setLogs(Array.isArray(data.logs)?data.logs:[]);setTotal(Number(data.total||0));setPage(Number(data.page||0));
+    }catch(err){setError(err.message||'Audit logs request failed.');}
+    finally{setBusy(false);}
+  }
+  useEffect(()=>{load(0,eventType);},[eventType]);
+  const eventTypes=['LOGIN_SUCCESS','LOGIN_FAILED','LOGIN_LOCKED','LOGIN_BLOCKED_UNVERIFIED','ACCOUNT_REGISTERED','EMAIL_VERIFIED','VERIFICATION_EMAIL_RESENT','PASSWORD_RESET_REQUESTED','PASSWORD_RESET_COMPLETED'];
+  return <div className="audit-module">
+    <div className="audit-head"><div><h2>Audit Logs</h2><p>Security and account activity recorded by VAARL.</p></div><button type="button" onClick={()=>load(page,eventType)}>↻ Refresh</button></div>
+    <div className="audit-toolbar"><label>Activity type<select value={eventType} onChange={e=>setEventType(e.target.value)}><option value="">All activities</option>{eventTypes.map(t=><option key={t} value={t}>{t.replaceAll('_',' ')}</option>)}</select></label><div className="audit-total">{total.toLocaleString()} records</div></div>
+    {busy?<div className="shops-state">Loading audit logs…</div>:error?<div className="shops-state shops-error">{error}</div>:logs.length===0?<div className="shops-state">No audit records found.</div>:
+      <div className="audit-table-wrap"><table className="audit-table"><thead><tr><th>Date & Time</th><th>Account</th><th>Activity</th><th>Details</th></tr></thead><tbody>{logs.map(row=><tr key={row.id}><td>{row.occurred_at?new Date(row.occurred_at).toLocaleString():'—'}</td><td>{row.actor_username||'System / Unknown'}</td><td><span className="audit-event">{String(row.event_type||'').replaceAll('_',' ')}</span></td><td>{row.details||'—'}</td></tr>)}</tbody></table></div>}
+    <div className="audit-pagination"><span>Page {page+1} of {Math.max(1,Math.ceil(total/size))}</span><div><button type="button" disabled={busy||page===0} onClick={()=>load(page-1,eventType)}>← Previous</button><button type="button" disabled={busy||(page+1)*size>=total} onClick={()=>load(page+1,eventType)}>Next →</button></div></div>
   </div>;
 }
