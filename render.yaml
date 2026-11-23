@@ -48,9 +48,8 @@ services:
         value: "false"
       - key: VAARL_SMTP_STARTTLS
         value: "false"
-  - type: web
+  - type: static
     name: vaarl-web
-    runtime: static
     rootDir: web-frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
