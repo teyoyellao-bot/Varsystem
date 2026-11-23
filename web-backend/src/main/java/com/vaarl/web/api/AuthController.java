@@ -39,12 +39,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "Shop name is required."));
         }
         try {
-            jdbc.update("""
-                INSERT INTO web_accounts
-                (id, full_name, email, username, phone, account_role, shop_name, password_hash)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                UUID accountId = UUID.randomUUID();
+            UUID accountId = UUID.randomUUID();
             jdbc.update("""
                 INSERT INTO web_accounts
                 (id, full_name, email, username, phone, account_role, shop_name, password_hash)
