@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS web_shop_services (
 );
 
 CREATE TABLE IF NOT EXISTS web_mechanics (
-    id UUID PRIMARY PRIMARY KEY,
+    id UUID PRIMARY KEY,
     shop_id UUID NOT NULL REFERENCES web_repair_shops(id) ON DELETE CASCADE,
     mechanic_name VARCHAR(120) NOT NULL,
     phone VARCHAR(40),
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS web_mechanics (
 );
 
 CREATE TABLE IF NOT EXISTS web_assistance_requests (
-    id UUID PRIMARYPRIMARY KEY,
+    id UUID PRIMARY KEY,
     requester_account_id UUID REFERENCES web_accounts(id) ON DELETE SET NULL,
     shop_id UUID NOT NULL REFERENCES web_repair_shops(id) ON DELETE RESTRICT,
     mechanic_id UUID REFERENCES web_mechanics(id) ON DELETE SET NULL,
