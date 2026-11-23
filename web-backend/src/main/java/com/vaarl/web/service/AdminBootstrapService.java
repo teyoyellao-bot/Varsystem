@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class AdminBootstrapService implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(AdminBootstrapService.class);
+    private static final int MIN_PASSWORD_LENGTH = 8; // Supports the legacy Admin password.
     private final JdbcTemplate jdbc;
     private final PasswordEncoder encoder;
     private final String fullName, email, username, password;
@@ -34,8 +35,8 @@ public class AdminBootstrapService implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (fullName.isBlank() || email.isBlank() || username.isBlank() || password.length() < 12) {
-            log.info("Admin bootstrap skipped. Set VAARL_ADMIN_FULL_NAME, VAARL_ADMIN_EMAIL, VAARL_ADMIN_USERNAME and a 12+ character VAARL_ADMIN_PASSWORD to enable.");
+        if (fullName.isBlank() || email.isBlank() || username.isBlank() || password.length() < MIN_PASSWORD_LENGTH) {
+            log.info("Admin bootstrap skipped. Set VAARL_ADMIN_FULL_NAME, VAARL_ADMIN_EMAIL, VAARL_ADMIN_USERNAME and an 8+ character VAARL_ADMIN_PASSWORD to enable.");
             return;
         }
         List<AccountRow> matches = jdbc.query("""
