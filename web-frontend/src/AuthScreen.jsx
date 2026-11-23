@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const API_BASE = import.meta.env.VITE_VAARL_API_URL || 'http://localhost:8080';
 
@@ -122,8 +122,63 @@ function RoleDashboard({ user, signOut }) {
       {active === 'Dashboard' ? <>
       <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
       <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
-      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
+      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
       <footer className="dash-footer">VAARL Web System · Development Preview</footer>
     </div>
   </section>;
+}
+
+
+function FindRepairShops() {
+  const [shops, setShops] = useState([]);
+  const [search, setSearch] = useState('');
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState('');
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    let ignore = false;
+    async function load() {
+      setBusy(true); setError('');
+      try {
+        const token = sessionStorage.getItem('vaarl_auth_token');
+        const response = await fetch(API_BASE + '/api/shops?q=' + encodeURIComponent(search), {
+          headers: token ? { Authorization: 'Bearer ' + token } : {}
+        });
+        const data = await response.json().catch(() => []);
+        if (!response.ok) throw new Error(data.message || 'Unable to load repair shops.');
+        if (!ignore) setShops(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (!ignore) setError(err.message || 'Could not connect to the shops API.');
+      } finally { if (!ignore) setBusy(false); }
+    }
+    load();
+    return () => { ignore = true; };
+  }, [search]);
+
+  return <div className="shops-module">
+    <div className="shops-toolbar">
+      <div><h2>Find Repair Shops</h2><p>Search active repair shops registered in VAARL.</p></div>
+      <input aria-label="Search repair shops" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search shop name or location…" />
+    </div>
+    {busy ? <div className="shops-state">Loading repair shops…</div> :
+      error ? <div className="shops-state shops-error">{error}<p>Ensure the VAARL API and database are running.</p></div> :
+      shops.length === 0 ? <div className="shops-state">No active repair shops found{search ? ' matching your search.' : ' in the database yet.'}</div> :
+      <div className="shops-grid">{shops.map(shop=><article className="shop-card" key={shop.id}>
+        <div className="shop-card-top"><span className="shop-mark">V</span><span className="shop-active">Active</span></div>
+        <h3>{shop.shopName}</h3><p className="shop-location">{shop.location || 'Location not provided'}</p>
+        <div className="shop-rating">★ {Number(shop.rating || 0).toFixed(1)} <span>({shop.reviewCount || 0} reviews)</span></div>
+        <div className="shop-services">{(shop.services || []).length ? shop.services.slice(0,4).map(s=><span key={s}>{s}</span>) : <span>Services not listed</span>}</div>
+        <button className="shop-details-button" onClick={()=>setSelected(shop)}>View Details</button>
+      </article>)}</div>}
+    {selected && <div className="shop-detail-overlay" role="dialog" aria-modal="true" aria-label="Repair shop details">
+      <div className="shop-detail-modal"><button className="shop-detail-close" onClick={()=>setSelected(null)} aria-label="Close">×</button>
+        <span className="shop-active">Active Shop</span><h2>{selected.shopName}</h2>
+        <p>{selected.location || 'Location not provided'}</p><p><b>Phone:</b> {selected.phone || 'Not provided'}</p><p><b>Hours:</b> {selected.hours || 'Not provided'}</p>
+        <p><b>About:</b> {selected.about || 'No shop description yet.'}</p><p><b>Rating:</b> ★ {Number(selected.rating || 0).toFixed(1)} ({selected.reviewCount || 0} reviews)</p>
+        <h3>Services</h3><div className="shop-services-detail">{(selected.services || []).length ? selected.services.map(s=><span key={s}>{s}</span>) : 'No services listed yet.'}</div>
+        <div className="dash-hint">Assistance request and mechanic selection will be connected in the next module.</div>
+        <button className="dash-back" onClick={()=>setSelected(null)}>Close Details</button>
+      </div></div>}
+  </div>;
 }
