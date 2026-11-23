@@ -118,3 +118,11 @@ footer { border-top: 1px solid rgba(255,255,255,.08); padding: 22px 28px; text-a
 .shop-mechanics-list{display:grid;gap:8px;margin-top:8px}
 .shop-mechanic-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border-radius:9px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08)}
 .shop-mechanic-row b{font-size:13px;color:#eaf2ff}.shop-mechanic-row span{font-size:11px;color:#5fe0ac}
+
+/* Request Assistance form */
+.assist-form-wrap{margin-top:22px;padding:18px;border-radius:12px;border:1px solid rgba(85,151,255,.22);background:rgba(4,17,38,.5)}
+.assist-form-wrap h3{margin:0 0 6px}.assist-form-wrap>p{margin:0 0 16px;color:#9fb5d2;font-size:13px}
+.assist-form{display:grid;gap:12px}.assist-form label{display:grid;gap:6px;color:#cbd8e9;font-size:12px;font-weight:650}
+.assist-form input,.assist-form textarea,.assist-form select{width:100%;border:1px solid rgba(255,255,255,.14);background:#07152c;border-radius:9px;padding:11px 12px;color:#f5f8ff;font:inherit;font-size:13px;outline:none}
+.assist-form input:focus,.assist-form textarea:focus,.assist-form select:focus{border-color:#378aff;box-shadow:0 0 0 3px rgba(55,138,255,.12)}
+.assist-form textarea{resize:vertical;min-height:70px}
