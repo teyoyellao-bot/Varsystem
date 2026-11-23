@@ -26,6 +26,11 @@ const dashboardContent = {
 
 export default function AuthScreen() {
   const [mode, setMode] = useState('login');
+  const [recovery, setRecovery] = useState(() => new URLSearchParams(window.location.search).has('token') ? 'reset' : '');
+  const [resetToken, setResetToken] = useState(() => new URLSearchParams(window.location.search).get('token') || '');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [role, setRole] = useState('VEHICLE_OWNER');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
@@ -65,6 +70,19 @@ export default function AuthScreen() {
         : message || 'Unable to connect to VAARL API.');
     } finally { setBusy(false); }
   }
+  async function submitRecovery(e) {
+    e.preventDefault(); setNotice(''); setBusy(true);
+    try {
+      const endpoint = recovery === 'forgot' ? '/api/auth/forgot-password' : '/api/auth/reset-password';
+      const payload = recovery === 'forgot' ? { email: recoveryEmail } : { token: resetToken, password: newPassword, confirmPassword: confirmNewPassword };
+      const response = await fetch(API_BASE + endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Password recovery failed.');
+      setNotice(data.message || 'Password recovery request processed.');
+      if (recovery === 'reset') { setRecovery(''); setMode('login'); window.history.replaceState({}, '', window.location.pathname); setNewPassword(''); setConfirmNewPassword(''); setResetToken(''); }
+    } catch (err) { setNotice(err.message || 'Password recovery failed.'); }
+    finally { setBusy(false); }
+  }
   function signOut() {
     sessionStorage.removeItem('vaarl_auth_token');
     setSignedIn(null); setNotice('Signed out.');
@@ -84,16 +102,23 @@ export default function AuthScreen() {
       </div>
       <div className="auth-card">
         <div className="auth-tabs">
-          <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => {setMode('login');setNotice('');}}>Sign In</button>
-          <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => {setMode('register');setNotice('');}}>Create Account</button>
+          <button type="button" className={mode === 'login' && !recovery ? 'active' : ''} onClick={() => {setMode('login');setRecovery('');setNotice('');}}>Sign In</button>
+          <button type="button" className={mode === 'register' && !recovery ? 'active' : ''} onClick={() => {setMode('register');setRecovery('');setNotice('');}}>Create Account</button>
         </div>
-        <h2>{mode === 'login' ? 'Welcome back' : 'Join VAARL'}</h2>
-        <p className="auth-subtitle">{mode === 'login' ? 'Sign in to continue to your account.' : 'Create your account to get started.'}</p>
-        {mode === 'register' && <div className="role-select">
+        <h2>{recovery === 'forgot' ? 'Forgot Password' : recovery === 'reset' ? 'Reset Password' : mode === 'login' ? 'Welcome back' : 'Join VAARL'}</h2>
+        <p className="auth-subtitle">{recovery === 'forgot' ? 'Enter your account email to request a reset link.' : recovery === 'reset' ? 'Choose a new password for your account.' : mode === 'login' ? 'Sign in to continue to your account.' : 'Create your account to get started.'}</p>
+        {!recovery && mode === 'register' && <div className="role-select">
           <button type="button" className={role === 'VEHICLE_OWNER' ? 'selected' : ''} onClick={() => setRole('VEHICLE_OWNER')}>Vehicle Owner</button>
           <button type="button" className={role === 'REPAIR_SHOP' ? 'selected' : ''} onClick={() => setRole('REPAIR_SHOP')}>Repair Shop</button>
         </div>}
-        <form onSubmit={submit}>
+        {recovery ? <form onSubmit={submitRecovery}>
+          {recovery === 'forgot' ? <label>Email Address<input required type="email" autoComplete="email" value={recoveryEmail} onChange={e=>setRecoveryEmail(e.target.value)} placeholder="you@example.com"/></label> : <>
+            <label>New Password<input required minLength={8} maxLength={72} type="password" autoComplete="new-password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} placeholder="Enter new password"/></label>
+            <label>Confirm New Password<input required minLength={8} maxLength={72} type="password" autoComplete="new-password" value={confirmNewPassword} onChange={e=>setConfirmNewPassword(e.target.value)} placeholder="Confirm new password"/></label>
+          </>}
+          <button className="auth-submit" disabled={busy}>{busy ? 'Please wait…' : recovery === 'forgot' ? 'Send Reset Link' : 'Update Password'} <span>→</span></button>
+          <div className="forgot-row"><button type="button" onClick={()=>{setRecovery('');setMode('login');setNotice('');}}>← Back to Sign In</button></div>
+        </form> : <form onSubmit={submit}>
           {mode === 'register' && <>
             <label>Full Name<input required maxLength={120} autoComplete="name" value={form.name} onChange={e=>update('name',e.target.value)} placeholder="Enter full name"/></label>
             <label>Email Address<input type="email" required autoComplete="email" value={form.email} onChange={e=>update('email',e.target.value)} placeholder="you@example.com"/></label>
@@ -106,10 +131,10 @@ export default function AuthScreen() {
           {mode === 'login' && <>
             <label>Email or Username<input required autoComplete="username" value={form.username} onChange={e=>update('username',e.target.value)} placeholder="Enter email or username"/></label>
             <label>Password<input required type="password" autoComplete="current-password" value={form.password} onChange={e=>update('password',e.target.value)} placeholder="Enter password"/></label>
-            <div className="forgot-row"><button type="button" onClick={()=>setNotice('Password recovery is not connected yet.')}>Forgot password?</button></div>
+            <div className="forgot-row"><button type="button" onClick={()=>{setRecovery('forgot');setNotice('');}}>Forgot password?</button></div>
           </>}
           <button className="auth-submit" disabled={busy} type="submit">{busy ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'} <span>→</span></button>
-        </form>
+        </form>}
         {notice && <div className="auth-notice" role="status">{notice}</div>}
         <div className="auth-footnote">Protected account access · VAARL Web</div>
       </div>
