@@ -122,7 +122,7 @@ function RoleDashboard({ user, signOut }) {
       {active === 'Dashboard' ? <>
       <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
       <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
-      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
+      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
       <footer className="dash-footer">VAARL Web System · Development Preview</footer>
     </div>
   </section>;
@@ -222,5 +222,32 @@ function FindRepairShops() {
         {assistOpen && <div className="assist-form-wrap"><h3>Request Vehicle Assistance</h3><p>Fill in your vehicle and assistance details.</p><form className="assist-form" onSubmit={submitAssistance}>{((shopDetail || {}).availableMechanics || []).length > 0 && <label>Mechanic<select value={assistForm.mechanicId} onChange={e=>assistUpdate('mechanicId',e.target.value)}><option value="">No preference</option>{shopDetail.availableMechanics.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}<label>Vehicle Information<input required maxLength={120} value={assistForm.vehicle} onChange={e=>assistUpdate('vehicle',e.target.value)} placeholder="Vehicle make/model/year"/></label><label>Problem<input required maxLength={255} value={assistForm.problem} onChange={e=>assistUpdate('problem',e.target.value)} placeholder="Describe the issue briefly"/></label><label>Location<input required maxLength={255} value={assistForm.location} onChange={e=>assistUpdate('location',e.target.value)} placeholder="Where is assistance needed?"/></label><label>Additional Details<textarea maxLength={2000} rows={3} value={assistForm.details} onChange={e=>assistUpdate('details',e.target.value)} placeholder="Additional information (optional)"/></label><label>Payment Method<select value={assistForm.paymentMethod} onChange={e=>assistUpdate('paymentMethod',e.target.value)}><option>Cash / GCash</option><option>Cash</option><option>GCash</option></select></label><button className="shop-details-button" disabled={assistBusy} type="submit">{assistBusy ? 'Submitting…' : 'Submit Request'}</button></form>{assistNotice && <div className="auth-notice" role="status">{assistNotice}</div>}</div>}
         <button className="dash-back" onClick={()=>{setAssistOpen(false);setSelected(null);}}>Close Details</button>
       </div></div>}
+  </div>;
+}
+
+function MyAssistanceRequests() {
+  const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(true);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let ignore = false;
+    async function load() {
+      setBusy(true); setError('');
+      try {
+        const token = sessionStorage.getItem('vaarl_auth_token');
+        const response = await fetch(API_BASE + '/api/assistance-requests', { headers: token ? { Authorization: 'Bearer ' + token } : {} });
+        const data = await response.json().catch(() => []);
+        if (!response.ok) throw new Error(data.message || 'Unable to load requests.');
+        if (!ignore) setItems(Array.isArray(data) ? data : []);
+      } catch (err) { if (!ignore) setError(err.message || 'Unable to connect to requests API.'); }
+      finally { if (!ignore) setBusy(false); }
+    }
+    load();
+    return () => { ignore = true; };
+  }, []);
+  const statusClass = status => String(status || 'Pending').toLowerCase().replace(/[^a-z]/g, '-');
+  return <div className="request-module"><div className="request-toolbar"><div><h2>My Assistance Requests</h2><p>Track the requests you submitted to repair shops.</p></div></div>
+    {busy ? <div className="shops-state">Loading your requests…</div> : error ? <div className="shops-state shops-error">{error}</div> : items.length === 0 ? <div className="shops-state">You haven't submitted any assistance requests yet.</div> :
+      <div className="request-list">{items.map(r=><article className="request-card" key={r.id}><header><div><small>REQUEST ID</small><strong>{r.id}</strong></div><span className={'request-status '+statusClass(r.status)}>{r.status}</span></header><h3>{r.shopName}</h3><div className="request-detail-grid"><div><small>Vehicle</small><b>{r.vehicle || '—'}</b></div><div><small>Problem</small><b>{r.problem || '—'}</b></div><div><small>Mechanic</small><b>{r.mechanicName || 'No preference'}</b></div><div><small>Location</small><b>{r.location || '—'}</b></div><div><small>Payment</small><b>{r.paymentMethod || '—'}</b></div><div><small>Submitted</small><b>{r.submittedAt ? new Date(r.submittedAt).toLocaleString() : '—'}</b></div></div>{r.details && <p className="request-extra">{r.details}</p>}<div className="request-status-track"><span className={['Pending','Accepted','On Going','Completed'].includes(r.status) ? 'step-current' : ''}>Pending</span><span className={['Accepted','On Going','Completed'].includes(r.status) ? 'step-current' : ''}>Accepted</span><span className={['On Going','Completed'].includes(r.status) ? 'step-current' : ''}>On Going</span><span className={r.status === 'Completed' ? 'step-current' : ''}>Completed</span></div></article>)}</div>}
   </div>;
 }
