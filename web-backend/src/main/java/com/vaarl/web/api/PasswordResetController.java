@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import com.vaarl.web.service.AuditLogService;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,15 +31,17 @@ public class PasswordResetController {
     private final JavaMailSender mailSender;
     private final String resetUrl;
     private final String fromAddress;
+    private final AuditLogService audit;
 
     public PasswordResetController(JdbcTemplate jdbc, PasswordEncoder encoder, JavaMailSender mailSender,
             @Value("${vaarl.password-reset-url:http://localhost:5173/reset-password}") String resetUrl,
-            @Value("${spring.mail.username:}") String fromAddress) {
+            @Value("${spring.mail.username:}") String fromAddress, AuditLogService audit) {
         this.jdbc = jdbc;
         this.encoder = encoder;
         this.mailSender = mailSender;
         this.resetUrl = resetUrl;
         this.fromAddress = fromAddress;
+        this.audit = audit;
     }
 
     @PostMapping("/forgot-password")
@@ -59,6 +62,7 @@ public class PasswordResetController {
                     INSERT INTO web_password_reset_tokens(id,account_id,token_hash,expires_at)
                     VALUES(?,?,?,?)
                     """,UUID.randomUUID(),accountId,tokenHash,LocalDateTime.now().plusMinutes(30));
+                audit.record(accountId, null, "PASSWORD_RESET_REQUESTED", "Password reset request received.");
                 try {
                     SimpleMailMessage mail = new SimpleMailMessage();
                     mail.setTo(email);
@@ -96,6 +100,7 @@ public class PasswordResetController {
         jdbc.update("UPDATE web_accounts SET password_hash=? WHERE id=?",encoder.encode(body.password()),token.accountId());
         jdbc.update("UPDATE web_password_reset_tokens SET used_at=CURRENT_TIMESTAMP WHERE id=?",token.id());
         jdbc.update("UPDATE web_password_reset_tokens SET used_at=CURRENT_TIMESTAMP WHERE account_id=? AND used_at IS NULL",token.accountId());
+        audit.record(token.accountId(), null, "PASSWORD_RESET_COMPLETED", "Account password was reset successfully.");
         return Map.of("message","Password reset successfully. You may now log in.");
     }
 
