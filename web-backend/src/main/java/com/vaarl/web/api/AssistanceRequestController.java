@@ -77,6 +77,15 @@ public class AssistanceRequestController {
             body.vehicle().trim(), body.problem().trim(), body.location().trim(),
             body.details() == null ? "" : body.details().trim(),
             body.paymentMethod() == null || body.paymentMethod().isBlank() ? "Cash / GCash" : body.paymentMethod().trim());
+        List<UUID> shopAccounts = jdbc.query("SELECT account_id FROM web_repair_shops WHERE id = ? AND account_id IS NOT NULL",
+            (rs, row) -> rs.getObject("account_id", UUID.class), shopId);
+        if (!shopAccounts.isEmpty()) {
+            jdbc.update("""
+                INSERT INTO web_notifications (id, account_id, type, title, message, related_request_id)
+                VALUES (?, ?, 'NEW_REQUEST', 'New Assistance Request', ?, ?)
+                """, UUID.randomUUID(), shopAccounts.get(0),
+                "You received a new vehicle assistance request.", requestId);
+        }
         return Map.of("message", "Assistance request submitted.", "requestId", requestId.toString(), "status", "Pending");
     }
 
