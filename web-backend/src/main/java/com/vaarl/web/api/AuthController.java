@@ -1,6 +1,7 @@
 package com.vaarl.web.api;
 
 import java.util.Map;
+import java.sql.Timestamp;
 import java.util.UUID;
 import java.util.Locale;
 import java.nio.charset.StandardCharsets;
@@ -87,7 +88,7 @@ public class AuthController {
             String rawToken = HexFormat.of().formatHex(tokenBytes);
             String tokenHash = sha256(rawToken);
             jdbc.update("INSERT INTO web_email_verification_tokens(id, account_id, token_hash, expires_at) VALUES (?, ?, ?, ?)",
-                UUID.randomUUID(), accountId, tokenHash, Instant.now().plusSeconds(24 * 60 * 60));
+                UUID.randomUUID(), accountId, tokenHash, Timestamp.from(Instant.now().plusSeconds(24 * 60 * 60)));
             SimpleMailMessage verification = new SimpleMailMessage();
             verification.setTo(email);
             verification.setSubject("Verify your VAARL email");
