@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: ${VAARL_DB_URL:jdbc:postgresql://localhost:5432/vaarl_db}
+    url: ${VAARL_DB_URL:jdbc:postgresql://${VAARL_DB_HOST:localhost}:${VAARL_DB_PORT:5432}/${VAARL_DB_NAME:vaarl_db}}
     username: ${VAARL_DB_USER}
     password: ${VAARL_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
