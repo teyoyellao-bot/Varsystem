@@ -70,6 +70,14 @@ public class ShopServiceJobsController {
             throw new ResponseStatusException(HttpStatus.CONFLICT,"Invalid status transition. Accepted jobs can start; ongoing jobs can be completed.");
         }
         if(updated==0)throw new ResponseStatusException(HttpStatus.CONFLICT,"Job status was not updated.");
+        List<UUID> ownerIds=jdbc.query("SELECT requester_account_id FROM web_assistance_requests WHERE id=? AND requester_account_id IS NOT NULL",
+            (rs,row)->rs.getObject("requester_account_id",UUID.class),requestId);
+        if(!ownerIds.isEmpty()){
+            String title=target.equals("On Going")?"Service Started":"Service Completed";
+            String message=target.equals("On Going")?"The repair shop has started your assistance service.":"Your assistance service has been completed.";
+            jdbc.update("INSERT INTO web_notifications (id,account_id,type,title,message,related_request_id) VALUES (?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID(),ownerIds.get(0),target.equals("On Going")?"SERVICE_STARTED":"SERVICE_COMPLETED",title,message,requestId);
+        }
         return Map.of("message","Job updated to "+target+".","status",target);
     }
 
