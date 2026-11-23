@@ -29,3 +29,5 @@ vaarl:
     expires-seconds: ${VAARL_JWT_EXPIRES_SECONDS:3600}
   password-reset-url: ${VAARL_PASSWORD_RESET_URL:http://localhost:5173/reset-password}
   email-verification-url: ${VAARL_EMAIL_VERIFICATION_URL:http://localhost:5173/verify-email}
+  resend-api-key: ${VAARL_RESEND_API_KEY:}
+  email-from: ${VAARL_EMAIL_FROM:onboarding@resend.dev}
