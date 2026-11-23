@@ -96,8 +96,8 @@ export default function AuthScreen() {
         : message || 'Unable to connect to VAARL API.');
     } finally { setBusy(false); }
   }
-  async function resendVerification(e) {
-    e.preventDefault(); setResendBusy(true); setResendNotice('');
+  async function resendVerification() {
+    setResendBusy(true); setResendNotice('');
     try {
       const response = await fetch(API_BASE + '/api/auth/email/resend', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: resendEmail }) });
       const data = await response.json().catch(() => ({}));
@@ -169,7 +169,7 @@ export default function AuthScreen() {
             <label>Email or Username<input required autoComplete="username" value={form.username} onChange={e=>update('username',e.target.value)} placeholder="Enter email or username"/></label>
             <label>Password<input required type="password" autoComplete="current-password" value={form.password} onChange={e=>update('password',e.target.value)} placeholder="Enter password"/></label>
             <div className="forgot-row"><button type="button" onClick={()=>{setRecovery('forgot');setNotice('');}}>Forgot password?</button><button type="button" onClick={()=>{setResendOpen(v=>!v);setResendNotice('');}}>Resend verification email</button></div>
-            {resendOpen && <form className="verification-resend-form" onSubmit={resendVerification}><label>Email Address<input required type="email" autoComplete="email" value={resendEmail} onChange={e=>setResendEmail(e.target.value)} placeholder="you@example.com"/></label><button type="submit" disabled={resendBusy}>{resendBusy?'Sending…':'Send Verification Email'}</button>{resendNotice&&<p role="status">{resendNotice}</p>}</form>}
+            {resendOpen && <div className="verification-resend-form"><label>Email Address<input required type="email" autoComplete="email" value={resendEmail} onChange={e=>setResendEmail(e.target.value)} placeholder="you@example.com"/></label><button type="button" disabled={resendBusy||!resendEmail.trim()} onClick={resendVerification}>{resendBusy?'Sending…':'Send Verification Email'}</button>{resendNotice&&<p role="status">{resendNotice}</p>}</div>}
           </>}
           <button className="auth-submit" disabled={busy} type="submit">{busy ? 'Please wait…' : mode === 'login' ? 'Sign In' : 'Create Account'} <span>→</span></button>
         </form>}
