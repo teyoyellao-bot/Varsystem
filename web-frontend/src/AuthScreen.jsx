@@ -67,13 +67,18 @@ export default function AuthScreen() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         const serverMessage = data.message || data.error || data.detail;
-        throw new Error(serverMessage || (response.status === 401
-          ? 'Invalid username/email or password.'
-          : response.status === 409
-            ? 'This account already exists. Check your username or email.'
-            : response.status >= 500
-              ? 'VAARL server error. Please try again later.'
-              : 'Request failed. Please check your details and try again.'));
+        const validationDetails = data.errors && typeof data.errors === 'object'
+          ? Object.entries(data.errors).map(([field, message]) => field + ': ' + message).join(' · ')
+          : '';
+        throw new Error(serverMessage
+          ? (validationDetails ? serverMessage + ' ' + validationDetails : serverMessage)
+          : response.status === 401
+            ? 'Invalid username/email or password.'
+            : response.status === 409
+              ? 'This account already exists. Check your username or email.'
+              : response.status >= 500
+                ? 'VAARL server error (HTTP ' + response.status + '). Check Render logs.'
+                : 'Request failed (HTTP ' + response.status + '). Please try again.');
       }
       if (mode === 'register') {
         setNotice(data.message || 'Account registered. Please sign in.');
