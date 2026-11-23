@@ -1,0 +1,68 @@
+databases:
+  - name: vaarl-db
+    databaseName: vaarl_db
+    user: vaarl_user
+    plan: free
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: vaarl-api
+    runtime: java
+    plan: free
+    rootDir: web-backend
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/*.jar
+    healthCheckPath: /api/health
+    envVars:
+      - key: VAARL_API_PORT
+        value: "10000"
+      - key: VAARL_DB_HOST
+        fromDatabase:
+          name: vaarl-db
+          property: host
+      - key: VAARL_DB_PORT
+        fromDatabase:
+          name: vaarl-db
+          property: port
+      - key: VAARL_DB_NAME
+        fromDatabase:
+          name: vaarl-db
+          property: database
+      - key: VAARL_DB_USER
+        fromDatabase:
+          name: vaarl-db
+          property: user
+      - key: VAARL_DB_PASSWORD
+        fromDatabase:
+          name: vaarl-db
+          property: password
+      - key: VAARL_JWT_SECRET
+        generateValue: true
+      - key: VAARL_JWT_EXPIRES_SECONDS
+        value: "3600"
+      - key: VAARL_SMTP_HOST
+        value: smtp.example.com
+      - key: VAARL_SMTP_PORT
+        value: "587"
+      - key: VAARL_SMTP_AUTH
+        value: "false"
+      - key: VAARL_SMTP_STARTTLS
+        value: "false"
+  - type: web
+    name: vaarl-web
+    runtime: static
+    plan: free
+    rootDir: web-frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_VAARL_API_URL
+        fromService:
+          type: web
+          name: vaarl-api
+          property: host
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
