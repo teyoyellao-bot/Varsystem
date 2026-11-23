@@ -135,6 +135,27 @@ function FindRepairShops() {
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
+  const [shopDetail, setShopDetail] = useState(null);
+  const [detailBusy, setDetailBusy] = useState(false);
+  const [detailError, setDetailError] = useState('');
+
+  useEffect(() => {
+    if (!selected) { setShopDetail(null); setDetailError(''); return; }
+    let ignore = false;
+    async function loadDetails() {
+      setDetailBusy(true); setDetailError('');
+      try {
+        const token = sessionStorage.getItem('vaarl_auth_token');
+        const response = await fetch(API_BASE + '/api/shops/' + encodeURIComponent(selected.id), { headers: token ? { Authorization: 'Bearer ' + token } : {} });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || 'Unable to load shop details.');
+        if (!ignore) setShopDetail(data);
+      } catch (err) { if (!ignore) setDetailError(err.message || 'Could not load details.'); }
+      finally { if (!ignore) setDetailBusy(false); }
+    }
+    loadDetails();
+    return () => { ignore = true; };
+  }, [selected]);
 
   useEffect(() => {
     let ignore = false;
@@ -173,11 +194,14 @@ function FindRepairShops() {
       </article>)}</div>}
     {selected && <div className="shop-detail-overlay" role="dialog" aria-modal="true" aria-label="Repair shop details">
       <div className="shop-detail-modal"><button className="shop-detail-close" onClick={()=>setSelected(null)} aria-label="Close">×</button>
-        <span className="shop-active">Active Shop</span><h2>{selected.shopName}</h2>
-        <p>{selected.location || 'Location not provided'}</p><p><b>Phone:</b> {selected.phone || 'Not provided'}</p><p><b>Hours:</b> {selected.hours || 'Not provided'}</p>
-        <p><b>About:</b> {selected.about || 'No shop description yet.'}</p><p><b>Rating:</b> ★ {Number(selected.rating || 0).toFixed(1)} ({selected.reviewCount || 0} reviews)</p>
-        <h3>Services</h3><div className="shop-services-detail">{(selected.services || []).length ? selected.services.map(s=><span key={s}>{s}</span>) : 'No services listed yet.'}</div>
-        <div className="dash-hint">Assistance request and mechanic selection will be connected in the next module.</div>
+        {detailBusy ? <div className="shops-state">Loading shop details…</div> : detailError ? <div className="shops-state shops-error">{detailError}</div> : <>
+          <span className="shop-active">Active Shop</span><h2>{(shopDetail || selected).shopName}</h2>
+          <p>{(shopDetail || selected).location || 'Location not provided'}</p><p><b>Phone:</b> {(shopDetail || selected).phone || 'Not provided'}</p><p><b>Hours:</b> {(shopDetail || selected).hours || 'Not provided'}</p>
+          <p><b>About:</b> {(shopDetail || selected).about || 'No shop description yet.'}</p><p><b>Rating:</b> ★ {Number((shopDetail || selected).rating || 0).toFixed(1)} ({(shopDetail || selected).reviewCount || 0} reviews)</p>
+          <h3>Services</h3><div className="shop-services-detail">{((shopDetail || selected).services || []).length ? (shopDetail || selected).services.map(s=><span key={s}>{s}</span>) : 'No services listed yet.'}</div>
+          <h3>Available Mechanics</h3><div className="shop-mechanics-list">{((shopDetail || {}).availableMechanics || []).length ? (shopDetail.availableMechanics).map(m=><div className="shop-mechanic-row" key={m.id}><b>{m.name}</b><span>{m.availability}</span></div>) : 'No mechanics currently marked available.'}</div>
+          <div className="dash-hint">Mechanic selection and Request Assistance will be implemented in the assistance-request module.</div>
+        </>}
         <button className="dash-back" onClick={()=>setSelected(null)}>Close Details</button>
       </div></div>}
   </div>;
