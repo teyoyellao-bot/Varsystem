@@ -52,7 +52,7 @@ public class AssistanceRequestController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     @Transactional
-    public Map<String, Object> createRequest(@RequestBody RequestBody body, Authentication authentication) {
+    public Map<String, Object> createRequest(@RequestBody RequestPayload body, Authentication authentication) {
         Account account = ownerAccount(authentication);
         if (body.shopId() == null || body.shopId().isBlank() || body.vehicle() == null || body.vehicle().isBlank()
                 || body.problem() == null || body.problem().isBlank() || body.location() == null || body.location().isBlank())
@@ -108,5 +108,5 @@ public class AssistanceRequestController {
 
 
     private record Account(UUID id, String fullName, String username, String phone, String role) {}
-    public record RequestBody(String shopId, String mechanicId, String vehicle, String problem, String location, String details, String paymentMethod) {}
+    public record RequestPayload(String shopId, String mechanicId, String vehicle, String problem, String location, String details, String paymentMethod) {}
 }
