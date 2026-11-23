@@ -173,3 +173,17 @@ footer { border-top: 1px solid rgba(255,255,255,.08); padding: 22px 28px; text-a
 .history-search input{flex:1;min-width:0;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.13);background:#081a33;color:#f4f7fb}
 .history-search span{font-size:12px;color:#b7c6d9;white-space:nowrap}
 .shop-history-card{border-top:1px solid rgba(255,255,255,.08)}
+
+.feedback-card .feedback-vehicle{color:#b8c5d6;font-size:13px;margin:4px 0 12px}
+.feedback-form{display:grid;gap:12px;margin-top:14px}
+.feedback-form label{font-weight:700;color:#dce7f6}
+.feedback-star-select{display:flex;gap:6px}
+.feedback-star-select button{background:transparent;border:0;padding:2px 4px;font-size:30px;color:#65758b;cursor:pointer}
+.feedback-star-select button.selected{color:#f5bd45}
+.feedback-form textarea{width:100%;resize:vertical;min-height:86px;border:1px solid rgba(255,255,255,.15);border-radius:10px;background:#081a33;color:#f4f7fb;padding:12px;font:inherit}
+.feedback-submit{justify-self:start;border:0;border-radius:9px;padding:11px 16px;background:#2678ed;color:white;font-weight:700;cursor:pointer}
+.feedback-submit:disabled{opacity:.45;cursor:not-allowed}
+.feedback-submitted{border-radius:10px;padding:14px;background:rgba(36,124,239,.08);border:1px solid rgba(90,150,220,.18);margin-top:14px}
+.feedback-stars-display{font-size:26px;letter-spacing:2px;color:#f5bd45}
+.feedback-submitted p{margin:8px 0;color:#d6e0ed}
+.feedback-submitted small{color:#8ea3bd}
