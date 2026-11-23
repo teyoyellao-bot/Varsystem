@@ -1,6 +1,5 @@
 package com.vaarl.web.api;
 
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -67,7 +66,7 @@ public class EmailVerificationController {
         }
     }
 
-    private void sendToken(String accountId, String email) {
+    private void sendToken(String accountId, String email) throws Exception {
         String raw = token();
         jdbc.update("""
             INSERT INTO web_email_verification_tokens(id, account_id, token_hash, expires_at)
@@ -81,7 +80,7 @@ public class EmailVerificationController {
             "from", emailFrom,
             "to", email,
             "subject", "Verify your VAARL email",
-            "html", "<p>Verify your email using the link below. This link expires in 24 hours.</p><p><a href=\"" + link + "\\">Verify Email</a></p>"
+            "html", "<p>Verify your email using the link below. This link expires in 24 hours.</p><p><a href=\"" + link + "\">Verify Email</a></p>"
         ));
         HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.resend.com/emails"))
             .timeout(Duration.ofSeconds(20))
