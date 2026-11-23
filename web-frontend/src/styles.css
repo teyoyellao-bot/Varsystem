@@ -126,3 +126,12 @@ footer { border-top: 1px solid rgba(255,255,255,.08); padding: 22px 28px; text-a
 .assist-form input,.assist-form textarea,.assist-form select{width:100%;border:1px solid rgba(255,255,255,.14);background:#07152c;border-radius:9px;padding:11px 12px;color:#f5f8ff;font:inherit;font-size:13px;outline:none}
 .assist-form input:focus,.assist-form textarea:focus,.assist-form select:focus{border-color:#378aff;box-shadow:0 0 0 3px rgba(55,138,255,.12)}
 .assist-form textarea{resize:vertical;min-height:70px}
+
+/* My Assistance Requests tracking */
+.request-module{margin-top:24px}.request-toolbar h2{margin:0 0 8px;font-size:24px}.request-toolbar p{margin:0 0 18px;color:#aabbd3;font-size:13px}
+.request-list{display:grid;gap:14px}.request-card{background:#0b1e3a;border:1px solid rgba(255,255,255,.1);border-radius:13px;padding:20px}
+.request-card header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.request-card header small,.request-detail-grid small{display:block;color:#80b8ff;font-size:10px;letter-spacing:.1em;margin-bottom:5px}.request-card header strong{display:block;color:#90a7c6;font-size:10px;word-break:break-all;max-width:280px}.request-card h3{margin:14px 0;font-size:18px}
+.request-status{border-radius:20px;padding:6px 10px;font-size:11px;font-weight:700;background:rgba(255,190,75,.12);border:1px solid rgba(255,190,75,.2);color:#ffd36b}.request-status.accepted{color:#8bc4ff;background:rgba(70,150,255,.12);border-color:rgba(70,150,255,.2)}.request-status.on-going{color:#b9a4ff;background:rgba(155,115,255,.12);border-color:rgba(155,115,255,.2)}.request-status.completed{color:#5fe0ac;background:rgba(47,190,137,.12);border-color:rgba(47,190,137,.2)}
+.request-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.request-detail-grid b{display:block;font-size:13px;color:#dce8f8;font-weight:600;overflow-wrap:anywhere}.request-extra{color:#aabbd3;font-size:13px;line-height:1.5}
+.request-status-track{display:flex;justify-content:space-between;gap:4px;margin-top:18px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)}.request-status-track span{font-size:10px;color:#647a98;padding:5px 3px;border-bottom:2px solid #253c5b;flex:1;text-align:center}.request-status-track span.step-current{color:#75b7ff;border-color:#388aff}
+@media(max-width:480px){.request-detail-grid{grid-template-columns:1fr}.request-card{padding:16px}.request-status-track span{font-size:9px}}
