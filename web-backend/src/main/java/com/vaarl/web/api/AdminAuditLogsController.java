@@ -17,6 +17,36 @@ public class AdminAuditLogsController {
         this.jdbc = jdbc;
     }
 
+    @GetMapping("/accounts")
+    public Map<String, Object> accounts(Authentication authentication,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String q) {
+        if (authentication == null || authentication.getAuthorities().stream()
+                .noneMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()))) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required.");
+        }
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(100, size));
+        String search = q == null ? "" : q.trim().toLowerCase();
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+            SELECT id, full_name, email, username, phone, account_role, shop_name, created_at
+            FROM web_accounts
+            WHERE (? = '' OR lower(full_name) LIKE ? OR lower(email) LIKE ?
+                   OR lower(username) LIKE ? OR lower(coalesce(shop_name,'')) LIKE ?)
+            ORDER BY created_at DESC, username
+            LIMIT ? OFFSET ?
+            """, search, "%" + search + "%", "%" + search + "%", "%" + search + "%",
+                "%" + search + "%", safeSize, (long) safePage * safeSize);
+        long total = jdbc.queryForObject("""
+            SELECT COUNT(*) FROM web_accounts
+            WHERE (? = '' OR lower(full_name) LIKE ? OR lower(email) LIKE ?
+                   OR lower(username) LIKE ? OR lower(coalesce(shop_name,'')) LIKE ?)
+            """, Long.class, search, "%" + search + "%", "%" + search + "%",
+                "%" + search + "%", "%" + search + "%");
+        return Map.of("page", safePage, "size", safeSize, "total", total, "accounts", rows);
+    }
+
     @GetMapping
     public Map<String, Object> list(Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
