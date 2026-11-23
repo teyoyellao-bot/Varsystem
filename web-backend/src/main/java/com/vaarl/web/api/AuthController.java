@@ -2,6 +2,9 @@ package com.vaarl.web.api;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.Locale;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +23,9 @@ public class AuthController {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder encoder;
     private final JwtService jwt;
+    private static final int MAX_LOGIN_FAILURES = 5;
+    private static final long LOCK_DURATION_MS = 15 * 60 * 1000L;
+    private final ConcurrentMap<String, LoginAttempt> loginAttempts = new ConcurrentHashMap<>();
 
     public AuthController(JdbcTemplate jdbc, PasswordEncoder encoder, JwtService jwt) {
         this.jdbc = jdbc;
@@ -69,6 +75,20 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+        String loginKey = request.usernameOrEmail().trim().toLowerCase(Locale.ROOT);
+        LoginAttempt attempt = loginAttempts.computeIfAbsent(loginKey, key -> new LoginAttempt());
+        synchronized (attempt) {
+            long now = System.currentTimeMillis();
+            if (attempt.lockedUntil > now) {
+                long remainingSeconds = Math.max(1, (attempt.lockedUntil - now + 999) / 1000);
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Too many failed login attempts. Please try again later.", "retryAfterSeconds", remainingSeconds));
+            }
+            if (attempt.lockedUntil != 0 && attempt.lockedUntil <= now) {
+                attempt.failures = 0;
+                attempt.lockedUntil = 0;
+            }
+        }
         var rows = jdbc.query("""
             SELECT id, username, email, account_role, password_hash
             FROM web_accounts
@@ -80,14 +100,32 @@ public class AuthController {
                 rs.getString("account_role"), rs.getString("password_hash")),
             request.usernameOrEmail().trim(), request.usernameOrEmail().trim());
         if (rows.isEmpty() || !encoder.matches(request.password(), rows.get(0).passwordHash())) {
+            synchronized (attempt) {
+                attempt.failures++;
+                if (attempt.failures >= MAX_LOGIN_FAILURES) {
+                    attempt.lockedUntil = System.currentTimeMillis() + LOCK_DURATION_MS;
+                    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .body(Map.of("message", "Too many failed login attempts. Please try again in 15 minutes."));
+                }
+            }
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid username/email or password."));
         }
+        synchronized (attempt) {
+            attempt.failures = 0;
+            attempt.lockedUntil = 0;
+        }
+        loginAttempts.remove(loginKey, attempt);
         Account a = rows.get(0);
         String token = jwt.createToken(a.id(), a.role(), a.username());
         return ResponseEntity.ok(Map.of(
             "token", token,
             "user", Map.of("id", a.id(), "username", a.username(), "email", a.email(), "role", a.role())
         ));
+    }
+
+    private static final class LoginAttempt {
+        private int failures;
+        private long lockedUntil;
     }
 
     private record Account(String id, String username, String email, String role, String passwordHash) {}
