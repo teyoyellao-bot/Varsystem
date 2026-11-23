@@ -168,3 +168,8 @@ footer { border-top: 1px solid rgba(255,255,255,.08); padding: 22px 28px; text-a
 .service-job-actions{display:flex;margin-top:18px}
 .service-job-actions button{border:0;border-radius:10px;padding:11px 16px;background:#1769e8;color:#fff;font-weight:700;cursor:pointer}
 .service-job-actions button:disabled{opacity:.6;cursor:wait}
+
+.history-search{display:flex;align-items:center;gap:12px;margin:16px 0 20px}
+.history-search input{flex:1;min-width:0;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.13);background:#081a33;color:#f4f7fb}
+.history-search span{font-size:12px;color:#b7c6d9;white-space:nowrap}
+.shop-history-card{border-top:1px solid rgba(255,255,255,.08)}
