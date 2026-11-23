@@ -8,6 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping("/api/assistance-requests")
@@ -48,6 +49,7 @@ public class AssistanceRequestController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     public Map<String, Object> createRequest(@RequestBody RequestBody body, Authentication authentication) {
         Account account = ownerAccount(authentication);
         if (body.shopId() == null || body.shopId().isBlank() || body.vehicle() == null || body.vehicle().isBlank()
