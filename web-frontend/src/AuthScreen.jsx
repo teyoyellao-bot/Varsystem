@@ -41,7 +41,16 @@ export default function AuthScreen() {
         : { usernameOrEmail: form.username, password: form.password };
       const response = await fetch(API_BASE + endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.message || 'Request failed. Check the server and your details.');
+      if (!response.ok) {
+        const serverMessage = data.message || data.error || data.detail;
+        throw new Error(serverMessage || (response.status === 401
+          ? 'Invalid username/email or password.'
+          : response.status === 409
+            ? 'This account already exists. Check your username or email.'
+            : response.status >= 500
+              ? 'VAARL server error. Please try again later.'
+              : 'Request failed. Please check your details and try again.'));
+      }
       if (mode === 'register') {
         setNotice(data.message || 'Account registered. Please sign in.');
         setMode('login'); setForm(prev => ({ ...prev, password: '', confirm: '' }));
@@ -50,7 +59,10 @@ export default function AuthScreen() {
         setSignedIn(data.user); setNotice('');
       }
     } catch (err) {
-      setNotice(err.message || 'Unable to connect to VAARL API.');
+      const message = err?.message || '';
+      setNotice(message === 'Failed to fetch' || message === 'NetworkError when attempting to fetch resource.'
+        ? 'Unable to connect to VAARL server. Check that the backend is running.'
+        : message || 'Unable to connect to VAARL API.');
     } finally { setBusy(false); }
   }
   function signOut() {
