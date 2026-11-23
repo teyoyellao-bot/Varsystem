@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.vaarl</groupId>
+    <artifactId>vaarl-system</artifactId>
+    <!-- Version comes from the <revision> property below. -->
+    <version>${revision}</version>
+    <packaging>jar</packaging>
+    <name>VAARL System</name>
+    <description>Vehicle Assistance and Repair Locator - Java Swing desktop application</description>
+
+    <properties>
+        <!-- ============================================================
+             VERSION CONTROL - edit this ONE line to change the app version,
+             or override it from the command line:  mvn package -Drevision=1.2.0
+             For the MSI the version must be numeric: 1, 1.2 or 1.2.3
+             (no -SNAPSHOT, no letters).
+             ============================================================ -->
+        <revision>1.1.0</revision>
+
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <main.class>varsystem.Main</main.class>
+        <postgresql.version>42.7.13</postgresql.version>
+
+        <!-- Installer settings (used by the "msi" profile) -->
+        <app.name>VAARL</app.name>
+        <!-- Never change this UUID: it lets a newer MSI upgrade an older install. -->
+        <win.upgrade.uuid>711686D1-D92A-4115-9E43-0DFEF9E317AA</win.upgrade.uuid>
+
+        <!-- WiX Toolset 3.x (JDK 21's jpackage needs WiX 3: candle.exe / light.exe) -->
+        <wix.version>3.14.1</wix.version>
+        <wix.url>https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip</wix.url>
+        <wix.dir>${project.build.directory}/wix</wix.dir>
+        <!-- true = don't download WiX, use the one already installed on this PC -->
+        <wix.skipDownload>false</wix.skipDownload>
+    </properties>
+
+    <dependencies>
+        <!-- Replaces lib/postgresql-42.7.13.jar -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>${postgresql.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>vaarl-system-app</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+
+            <!-- Builds one runnable "fat" jar: target/vaarl-system-app.jar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>${main.class}</mainClass>
+                                    <manifestEntries>
+                                        <!-- Readable at runtime: Main.class.getPackage().getImplementationVersion() -->
+                                        <Implementation-Title>${project.name}</Implementation-Title>
+                                        <Implementation-Version>${project.version}</Implementation-Version>
+                                    </manifestEntries>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- ================================================================
+             MSI installer (Windows only):   mvn clean package -Pmsi
+             1) downloads + unpacks WiX Toolset into target/wix
+             2) after the fat jar is built, runs build-msi.ps1 (jpackage, package type msi)
+             Result: installer/VAARL-<version>.msi
+             ================================================================ -->
+        <profile>
+            <id>msi</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.googlecode.maven-download-plugin</groupId>
+                        <artifactId>download-maven-plugin</artifactId>
+                        <version>1.6.8</version>
+                        <executions>
+                            <execution>
+                                <id>download-wix</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>wget</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${wix.skipDownload}</skip>
+                                    <url>${wix.url}</url>
+                                    <unpack>true</unpack>
+                                    <outputDirectory>${wix.dir}</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Declared after maven-shade-plugin, so it runs after it in the package phase -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>build-msi</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>powershell</executable>
+                                    <workingDirectory>${project.basedir}</workingDirectory>
+                                    <arguments>
+                                        <argument>-NoProfile</argument>
+                                        <argument>-ExecutionPolicy</argument>
+                                        <argument>Bypass</argument>
+                                        <argument>-File</argument>
+                                        <argument>build-msi.ps1</argument>
+                                        <argument>-AppName</argument>
+                                        <argument>${app.name}</argument>
+                                        <argument>-AppVersion</argument>
+                                        <argument>${project.version}</argument>
+                                        <argument>-JarName</argument>
+                                        <argument>${project.build.finalName}.jar</argument>
+                                        <argument>-MainClass</argument>
+                                        <argument>${main.class}</argument>
+                                        <argument>-UpgradeUuid</argument>
+                                        <argument>${win.upgrade.uuid}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
