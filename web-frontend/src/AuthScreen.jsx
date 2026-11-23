@@ -138,6 +138,23 @@ function FindRepairShops() {
   const [shopDetail, setShopDetail] = useState(null);
   const [detailBusy, setDetailBusy] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [assistOpen, setAssistOpen] = useState(false);
+  const [assistBusy, setAssistBusy] = useState(false);
+  const [assistNotice, setAssistNotice] = useState('');
+  const [assistForm, setAssistForm] = useState({ mechanicId: '', vehicle: '', problem: '', location: '', details: '', paymentMethod: 'Cash / GCash' });
+  const assistUpdate = (key, value) => setAssistForm(prev => ({ ...prev, [key]: value }));
+  async function submitAssistance(e) {
+    e.preventDefault(); setAssistBusy(true); setAssistNotice('');
+    try {
+      const token = sessionStorage.getItem('vaarl_auth_token');
+      const response = await fetch(API_BASE + '/api/assistance-requests', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ shopId: selected.id, ...assistForm }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'Unable to submit assistance request.');
+      setAssistNotice(data.message || 'Assistance request submitted.');
+      setAssistForm({ mechanicId: '', vehicle: '', problem: '', location: '', details: '', paymentMethod: 'Cash / GCash' });
+    } catch (err) { setAssistNotice(err.message || 'Request submission failed.'); }
+    finally { setAssistBusy(false); }
+  }
 
   useEffect(() => {
     if (!selected) { setShopDetail(null); setDetailError(''); return; }
@@ -200,9 +217,10 @@ function FindRepairShops() {
           <p><b>About:</b> {(shopDetail || selected).about || 'No shop description yet.'}</p><p><b>Rating:</b> ★ {Number((shopDetail || selected).rating || 0).toFixed(1)} ({(shopDetail || selected).reviewCount || 0} reviews)</p>
           <h3>Services</h3><div className="shop-services-detail">{((shopDetail || selected).services || []).length ? (shopDetail || selected).services.map(s=><span key={s}>{s}</span>) : 'No services listed yet.'}</div>
           <h3>Available Mechanics</h3><div className="shop-mechanics-list">{((shopDetail || {}).availableMechanics || []).length ? (shopDetail.availableMechanics).map(m=><div className="shop-mechanic-row" key={m.id}><b>{m.name}</b><span>{m.availability}</span></div>) : 'No mechanics currently marked available.'}</div>
-          <div className="dash-hint">Mechanic selection and Request Assistance will be implemented in the assistance-request module.</div>
+          <button className="shop-details-button" onClick={() => {setAssistOpen(true);setAssistNotice('');}}>Request Assistance</button>
         </>}
-        <button className="dash-back" onClick={()=>setSelected(null)}>Close Details</button>
+        {assistOpen && <div className="assist-form-wrap"><h3>Request Vehicle Assistance</h3><p>Fill in your vehicle and assistance details.</p><form className="assist-form" onSubmit={submitAssistance}>{((shopDetail || {}).availableMechanics || []).length > 0 && <label>Mechanic<select value={assistForm.mechanicId} onChange={e=>assistUpdate('mechanicId',e.target.value)}><option value="">No preference</option>{shopDetail.availableMechanics.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}<label>Vehicle Information<input required maxLength={120} value={assistForm.vehicle} onChange={e=>assistUpdate('vehicle',e.target.value)} placeholder="Vehicle make/model/year"/></label><label>Problem<input required maxLength={255} value={assistForm.problem} onChange={e=>assistUpdate('problem',e.target.value)} placeholder="Describe the issue briefly"/></label><label>Location<input required maxLength={255} value={assistForm.location} onChange={e=>assistUpdate('location',e.target.value)} placeholder="Where is assistance needed?"/></label><label>Additional Details<textarea maxLength={2000} rows={3} value={assistForm.details} onChange={e=>assistUpdate('details',e.target.value)} placeholder="Additional information (optional)"/></label><label>Payment Method<select value={assistForm.paymentMethod} onChange={e=>assistUpdate('paymentMethod',e.target.value)}><option>Cash / GCash</option><option>Cash</option><option>GCash</option></select></label><button className="shop-details-button" disabled={assistBusy} type="submit">{assistBusy ? 'Submitting…' : 'Submit Request'}</button></form>{assistNotice && <div className="auth-notice" role="status">{assistNotice}</div>}</div>}
+        <button className="dash-back" onClick={()=>{setAssistOpen(false);setSelected(null);}}>Close Details</button>
       </div></div>}
   </div>;
 }
