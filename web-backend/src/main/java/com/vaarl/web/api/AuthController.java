@@ -16,6 +16,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import org.springframework.dao.DuplicateKeyException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -34,6 +36,7 @@ import com.vaarl.web.service.AuditLogService;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private final JdbcTemplate jdbc;
     private final PasswordEncoder encoder;
     private final JwtService jwt;
@@ -190,8 +193,14 @@ public class AuthController {
                 .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
                 .build();
             HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-            return response.statusCode() >= 200 && response.statusCode() < 300;
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                log.info("Resend accepted verification email (HTTP {}).", response.statusCode());
+                return true;
+            }
+            log.warn("Resend rejected verification email (HTTP {}): {}", response.statusCode(), response.body());
+            return false;
         } catch (Exception ex) {
+            log.warn("Resend verification email request failed: {}", ex.toString());
             return false;
         }
     }
