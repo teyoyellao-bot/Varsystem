@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import AuthScreen from './AuthScreen.jsx';
 
-const API_URL = import.meta.env.VITE_VAARL_API_URL || 'http://localhost:8080';
+const API_URL = import.meta.env.VITE_VAARL_API_URL || 'https://vaarl-api.onrender.com';
 const API_BASE = (API_URL.startsWith('http') ? API_URL : 'https://' + API_URL).replace(/\/$/, '');
 
 export default function App() {
