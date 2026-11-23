@@ -6,12 +6,22 @@ import java.sql.ResultSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.Locale;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Instant;
+import java.util.HexFormat;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.validation.Valid;
 import org.springframework.util.StringUtils;
@@ -25,17 +35,24 @@ public class AuthController {
     private final JdbcTemplate jdbc;
     private final PasswordEncoder encoder;
     private final JwtService jwt;
+    private final JavaMailSender mail;
+    private final String verifyUrl;
+    private static final SecureRandom RANDOM = new SecureRandom();
     private static final int MAX_LOGIN_FAILURES = 5;
     private static final long LOCK_DURATION_MS = 15 * 60 * 1000L;
     private final ConcurrentMap<String, LoginAttempt> loginAttempts = new ConcurrentHashMap<>();
 
-    public AuthController(JdbcTemplate jdbc, PasswordEncoder encoder, JwtService jwt) {
+    public AuthController(JdbcTemplate jdbc, PasswordEncoder encoder, JwtService jwt, JavaMailSender mail,
+            @Value("${vaarl.email-verification-url}") String verifyUrl) {
         this.jdbc = jdbc;
         this.encoder = encoder;
         this.jwt = jwt;
+        this.mail = mail;
+        this.verifyUrl = verifyUrl;
     }
 
     @PostMapping("/register")
+    @Transactional
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         String role = request.role() == null ? "" : request.role().trim().toUpperCase();
         String fullName = request.fullName().trim();
@@ -69,7 +86,18 @@ public class AuthController {
                     VALUES (?, ?, ?, ?, ?, 'Active')
                     """, UUID.randomUUID(), accountId, shopName, "", phone);
             }
-            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Registration successful."));
+            byte[] tokenBytes = new byte[32];
+            RANDOM.nextBytes(tokenBytes);
+            String rawToken = HexFormat.of().formatHex(tokenBytes);
+            String tokenHash = sha256(rawToken);
+            jdbc.update("INSERT INTO web_email_verification_tokens(id, account_id, token_hash, expires_at) VALUES (?, ?, ?, ?)",
+                UUID.randomUUID(), accountId, tokenHash, Instant.now().plusSeconds(24 * 60 * 60));
+            SimpleMailMessage verification = new SimpleMailMessage();
+            verification.setTo(email);
+            verification.setSubject("Verify your VAARL email");
+            verification.setText("Verify your email using this link (expires in 24 hours):\\n\\n" + verifyUrl + "?token=" + rawToken);
+            mail.send(verification);
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Registration successful. Please check your email to verify your account."));
         } catch (DuplicateKeyException ex) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", "Email or username is already registered."));
         }
@@ -126,6 +154,12 @@ public class AuthController {
             "token", token,
             "user", Map.of("id", a.id(), "username", a.username(), "email", a.email(), "role", a.role())
         ));
+    }
+
+    private static String sha256(String value) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException ex) { throw new IllegalStateException("SHA-256 unavailable", ex); }
     }
 
     private static final class LoginAttempt {
