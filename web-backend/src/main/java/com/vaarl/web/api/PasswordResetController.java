@@ -4,42 +4,55 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.Base64;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.MailException;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vaarl.web.service.AuditLogService;
 
 @RestController
 @RequestMapping("/api/auth")
 public class PasswordResetController {
+    private static final Logger log = LoggerFactory.getLogger(PasswordResetController.class);
     private static final SecureRandom RANDOM = new SecureRandom();
+    private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+
     private final JdbcTemplate jdbc;
     private final PasswordEncoder encoder;
-    private final JavaMailSender mailSender;
+    private final ObjectMapper objectMapper;
     private final String resetUrl;
+    private final String resendApiKey;
     private final String fromAddress;
     private final AuditLogService audit;
 
-    public PasswordResetController(JdbcTemplate jdbc, PasswordEncoder encoder, JavaMailSender mailSender,
+    public PasswordResetController(JdbcTemplate jdbc, PasswordEncoder encoder, ObjectMapper objectMapper,
             @Value("${vaarl.password-reset-url:http://localhost:5173/reset-password}") String resetUrl,
-            @Value("${spring.mail.username:}") String fromAddress, AuditLogService audit) {
+            @Value("${vaarl.resend-api-key:}") String resendApiKey,
+            @Value("${vaarl.email-from:onboarding@resend.dev}") String fromAddress,
+            AuditLogService audit) {
         this.jdbc = jdbc;
         this.encoder = encoder;
-        this.mailSender = mailSender;
+        this.objectMapper = objectMapper;
         this.resetUrl = resetUrl;
+        this.resendApiKey = resendApiKey;
         this.fromAddress = fromAddress;
         this.audit = audit;
     }
@@ -63,21 +76,41 @@ public class PasswordResetController {
                     VALUES(?,?,?,?)
                     """,UUID.randomUUID(),accountId,tokenHash,LocalDateTime.now().plusMinutes(30));
                 audit.record(accountId, null, "PASSWORD_RESET_REQUESTED", "Password reset request received.");
-                try {
-                    SimpleMailMessage mail = new SimpleMailMessage();
-                    mail.setTo(email);
-                    if (StringUtils.hasText(fromAddress)) mail.setFrom(fromAddress);
-                    mail.setSubject("VAARL Password Reset");
-                    mail.setText("We received a request to reset your VAARL password.\n\nUse this link within 30 minutes:\n"
-                        + resetUrl + (resetUrl.contains("?") ? "&" : "?") + "token=" + token
-                        + "\n\nIf you did not request this, you can ignore this email.");
-                    mailSender.send(mail);
-                } catch (MailException ex) {
-                    // Keep the response generic to avoid exposing account existence.
-                }
+                sendResetEmail(email, resetUrl + (resetUrl.contains("?") ? "&" : "?") + "token=" + token);
             }
         }
         return Map.of("message","If an account matches that email, a password reset link will be sent.");
+    }
+
+    private void sendResetEmail(String recipient, String resetLink) {
+        if (!StringUtils.hasText(resendApiKey) || !StringUtils.hasText(fromAddress)) {
+            log.warn("Password reset email not sent: Resend API key or sender address is not configured.");
+            return;
+        }
+        try {
+            String payload = objectMapper.writeValueAsString(Map.of(
+                "from", fromAddress,
+                "to", recipient,
+                "subject", "VAARL Password Reset",
+                "html", "<p>We received a request to reset your VAARL password.</p>"
+                    + "<p>This link expires in 30 minutes:</p><p><a href=\"" + resetLink
+                    + "\">Reset Password</a></p><p>If you did not request this, you can ignore this email.</p>"
+            ));
+            HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.resend.com/emails"))
+                .timeout(Duration.ofSeconds(20))
+                .header("Authorization", "Bearer " + resendApiKey)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(payload, StandardCharsets.UTF_8))
+                .build();
+            HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                log.info("Resend accepted password reset email (HTTP {}).", response.statusCode());
+            } else {
+                log.warn("Resend rejected password reset email (HTTP {}): {}", response.statusCode(), response.body());
+            }
+        } catch (Exception ex) {
+            log.warn("Password reset email request failed: {}", ex.toString());
+        }
     }
 
     @PostMapping("/reset-password")
