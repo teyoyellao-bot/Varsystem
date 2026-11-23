@@ -7,6 +7,17 @@ spring:
     username: ${VAARL_DB_USER}
     password: ${VAARL_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+  mail:
+    host: ${VAARL_SMTP_HOST:localhost}
+    port: ${VAARL_SMTP_PORT:587}
+    username: ${VAARL_SMTP_USER:}
+    password: ${VAARL_SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${VAARL_SMTP_AUTH:true}
+          starttls:
+            enable: ${VAARL_SMTP_STARTTLS:true}
   jpa:
     hibernate:
       ddl-auto: none
@@ -16,3 +27,4 @@ vaarl:
   jwt:
     secret: ${VAARL_JWT_SECRET}
     expires-seconds: 3600
+  password-reset-url: ${VAARL_PASSWORD_RESET_URL:http://localhost:5173/reset-password}
