@@ -44,7 +44,9 @@ public class JwtService {
             if (!MessageDigest.isEqual(expected, actual)) return null;
             var payload = mapper.readTree(decode(parts[1]));
             long exp = payload.path("exp").asLong(0);
-            if (exp <= Instant.now().getEpochSecond()) return null;
+            long issuedAt = payload.path("iat").asLong(0);
+            long now = Instant.now().getEpochSecond();
+            if (issuedAt <= 0 || issuedAt > now + 30 || exp <= now || exp <= issuedAt || exp - issuedAt > expiresSeconds) return null;
             String sub = payload.path("sub").asText("");
             String role = payload.path("role").asText("");
             String username = payload.path("username").asText("");
