@@ -164,3 +164,7 @@ footer { border-top: 1px solid rgba(255,255,255,.08); padding: 22px 28px; text-a
 .mechanic-card-actions button.mechanic-remove{background:rgba(255,255,255,.06);color:#ffb9c2;border:1px solid rgba(255,115,135,.2)}
 @media(max-width:900px){.mechanic-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.mechanic-form{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.mechanic-cards,.mechanic-form{grid-template-columns:1fr}.mechanic-form h3,.mechanic-form-actions{grid-column:1}}
+
+.service-job-actions{display:flex;margin-top:18px}
+.service-job-actions button{border:0;border-radius:10px;padding:11px 16px;background:#1769e8;color:#fff;font-weight:700;cursor:pointer}
+.service-job-actions button:disabled{opacity:.6;cursor:wait}
