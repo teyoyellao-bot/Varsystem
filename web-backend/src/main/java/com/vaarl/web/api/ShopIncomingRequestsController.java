@@ -60,6 +60,14 @@ public class ShopIncomingRequestsController {
             ? jdbc.update("UPDATE web_assistance_requests SET status = 'Accepted', accepted_at = CURRENT_TIMESTAMP WHERE id = ? AND shop_id = ? AND status = 'Pending'", id, shopId)
             : jdbc.update("UPDATE web_assistance_requests SET status = 'Declined' WHERE id = ? AND shop_id = ? AND status = 'Pending'", id, shopId);
         if (changed == 0) throw new ResponseStatusException(HttpStatus.CONFLICT, "Request not found, or it is no longer Pending.");
+        List<UUID> ownerIds = jdbc.query("SELECT requester_account_id FROM web_assistance_requests WHERE id = ? AND requester_account_id IS NOT NULL",
+            (rs, row) -> rs.getObject("requester_account_id", UUID.class), id);
+        if (!ownerIds.isEmpty()) {
+            String title = decision.equals("accept") ? "Request Accepted" : "Request Declined";
+            String message = decision.equals("accept") ? "The repair shop accepted your assistance request." : "The repair shop declined your assistance request.";
+            jdbc.update("INSERT INTO web_notifications (id, account_id, type, title, message, related_request_id) VALUES (?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID(), ownerIds.get(0), decision.equals("accept") ? "REQUEST_ACCEPTED" : "REQUEST_DECLINED", title, message, id);
+        }
         return Map.of("message", "Request " + nextStatus.toLowerCase() + ".", "status", nextStatus);
     }
 
