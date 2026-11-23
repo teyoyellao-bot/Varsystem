@@ -77,6 +77,6 @@ public class FeedbackController {
         if(ids.isEmpty())throw new ResponseStatusException(HttpStatus.FORBIDDEN,"Vehicle owner account required.");
         return ids.get(0);
     }
-    private static String safe(String v){return v==null?"":v;}
+    private static String safe(String v){return v==null?"":v;}}
     public record FeedbackBody(String requestId,int rating,String comment){}
 }
