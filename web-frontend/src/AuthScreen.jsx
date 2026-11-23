@@ -122,7 +122,7 @@ function RoleDashboard({ user, signOut }) {
       {active === 'Dashboard' ? <>
       <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
       <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
-      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
+      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
       <footer className="dash-footer">VAARL Web System · Development Preview</footer>
     </div>
   </section>;
@@ -417,5 +417,36 @@ function ShopHistory() {
     <div className="history-search"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customer, vehicle, mechanic, or request ID…"/><span>{filtered.length} records</span></div>
     {busy?<div className="shops-state">Loading shop history…</div>:error?<div className="shops-state shops-error">{error}</div>:filtered.length===0?<div className="shops-state">{records.length===0?'No completed or declined requests yet.':'No records match your search.'}</div>:
       <div className="request-list">{filtered.map(r=><article className="request-card shop-history-card" key={r.id}><header><div><small>REQUEST ID</small><strong>{r.id}</strong></div><span className={'request-status '+String(r.status).toLowerCase().replace(/[^a-z]/g,'-')}>{r.status}</span></header><h3>{r.customerName||'Customer'}</h3><div className="request-detail-grid"><div><small>Phone</small><b>{r.customerPhone||'—'}</b></div><div><small>Vehicle</small><b>{r.vehicle||'—'}</b></div><div><small>Problem</small><b>{r.problem||'—'}</b></div><div><small>Mechanic</small><b>{r.mechanicName||'—'}</b></div><div><small>Location</small><b>{r.location||'—'}</b></div><div><small>Payment</small><b>{r.paymentMethod||'—'}</b></div><div><small>Fee</small><b>₱{Number(r.fee||0).toLocaleString()}</b></div><div><small>Travel Fee</small><b>₱{Number(r.travelFee||0).toLocaleString()}</b></div><div><small>Submitted</small><b>{r.submittedAt?new Date(r.submittedAt).toLocaleString():'—'}</b></div><div><small>Completed</small><b>{r.completedAt?new Date(r.completedAt).toLocaleString():'—'}</b></div></div>{r.details&&<p className="request-extra">{r.details}</p>}</article>)}</div>}
+  </div>;
+}
+
+function OwnerRequestHistory() {
+  const [records,setRecords]=useState([]);
+  const [busy,setBusy]=useState(true);
+  const [error,setError]=useState('');
+  const [search,setSearch]=useState('');
+  useEffect(()=>{
+    let ignore=false;
+    async function load(){
+      setBusy(true);setError('');
+      try{
+        const token=sessionStorage.getItem('vaarl_auth_token');
+        const res=await fetch(API_BASE+'/api/assistance-requests',{headers:token?{Authorization:'Bearer '+token}:{}});
+        const data=await res.json().catch(()=>[]);
+        if(!res.ok)throw new Error(data.message||'Unable to load request history.');
+        if(!ignore)setRecords(Array.isArray(data)?data:[]);
+      }catch(e){if(!ignore)setError(e.message||'Request history API error.');}
+      finally{if(!ignore)setBusy(false);}
+    }
+    load();
+    return ()=>{ignore=true;};
+  },[]);
+  const past=records.filter(r=>['Completed','Declined','Cancelled','Canceled'].includes(r.status));
+  const filtered=past.filter(r=>[r.shopName,r.vehicle,r.problem,r.mechanicName,r.status,r.id].some(v=>String(v||'').toLowerCase().includes(search.toLowerCase())));
+  return <div className="request-module owner-history-module">
+    <div className="request-toolbar"><div><h2>Request History</h2><p>Past assistance records from your vehicle service requests.</p></div><div className="incoming-count">{past.length} past requests</div></div>
+    <div className="history-search"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search shop, vehicle, problem, or request ID…"/><span>{filtered.length} records</span></div>
+    {busy?<div className="shops-state">Loading request history…</div>:error?<div className="shops-state shops-error">{error}</div>:filtered.length===0?<div className="shops-state">{past.length===0?'No past requests yet. Completed or declined requests will appear here.':'No records match your search.'}</div>:
+      <div className="request-list">{filtered.map(r=><article className="request-card owner-history-card" key={r.id}><header><div><small>REQUEST ID</small><strong>{r.id}</strong></div><span className={'request-status '+String(r.status||'').toLowerCase().replace(/[^a-z]/g,'-')}>{r.status}</span></header><h3>{r.shopName||'Repair Shop'}</h3><div className="request-detail-grid"><div><small>Vehicle</small><b>{r.vehicle||'—'}</b></div><div><small>Problem</small><b>{r.problem||'—'}</b></div><div><small>Mechanic</small><b>{r.mechanicName||'—'}</b></div><div><small>Location</small><b>{r.location||'—'}</b></div><div><small>Payment</small><b>{r.paymentMethod||'—'}</b></div><div><small>Service Fee</small><b>₱{Number(r.fee||0).toLocaleString()}</b></div><div><small>Travel Fee</small><b>₱{Number(r.travelFee||0).toLocaleString()}</b></div><div><small>Submitted</small><b>{r.submittedAt?new Date(r.submittedAt).toLocaleString():'—'}</b></div><div><small>Completed</small><b>{r.completedAt?new Date(r.completedAt).toLocaleString():'—'}</b></div></div>{r.details&&<p className="request-extra">{r.details}</p>}</article>)}</div>}
   </div>;
 }
