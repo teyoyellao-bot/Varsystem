@@ -16,7 +16,8 @@ const dashboardContent = {
     ['Incoming Requests', 'Review assistance requests sent to your shop.'],
     ['Mechanics', 'Manage mechanic profiles and availability.'],
     ['Service Jobs', 'Track accepted and ongoing jobs.'],
-    ['Shop History', 'Review completed assistance records.'],\n    ['Support', 'Send a message to the VAARL administrator.']
+    ['Shop History', 'Review completed assistance records.'],
+    ['Support', 'Send a message to the VAARL administrator.']
   ],
   ADMIN: [
     ['Account Management', 'Manage registered vehicle owners and repair shops.'],
