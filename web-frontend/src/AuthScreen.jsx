@@ -128,13 +128,13 @@ export default function AuthScreen() {
   return (
     <section className="auth-wrap">
       <div className="auth-intro">
-        <div className="eyebrow">VEHICLE ASSISTANCE & REPAIR LOCATOR</div>
-        <h1>Find help.<br/><span>Get back on the road.</span></h1>
-        <p>Discover repair shops, request vehicle assistance, and keep track of your service requests—all in one place.</p>
+        <div className="eyebrow">VEHICLE ASSISTANCE AND</div>
+        <h1>VEHICLE ASSISTANCE AND<br/><span>REPAIR LOCATOR</span></h1>
+        <p>Find nearby vehicle repair assistance quickly and easily.</p>
         <div className="auth-benefits">
-          <div><span className="benefit-icon">⌖</span><div><b>Nearby repair assistance</b><small>Connect with repair shops</small></div></div>
-          <div><span className="benefit-icon">✓</span><div><b>Track your requests</b><small>Stay updated on service progress</small></div></div>
-          <div><span className="benefit-icon">◇</span><div><b>Trusted shop profiles</b><small>Explore services and ratings</small></div></div>
+          <div><span className="benefit-icon">⌖</span><div><b>Find Nearby</b><small>Repair Shop</small></div></div>
+          <div><span className="benefit-icon">✓</span><div><b>Get Help</b><small>Faster</small></div></div>
+          <div><span className="benefit-icon">◇</span><div><b>Stay Safe</b><small>on the road</small></div></div>
         </div>
       </div>
       <div className="auth-card">
