@@ -9,13 +9,13 @@ const dashboardContent = {
     ['Find Repair Shops', 'Explore repair shops and their services.'],
     ['My Assistance Requests', 'Review the status of your vehicle assistance requests.'],
     ['Request History', 'See your past assistance activity.'],
-    ['Feedback & Ratings', 'Rate completed assistance.']
+    ['Feedback & Ratings', 'Rate completed assistance.'],\n    ['Support', 'Send a message to the VAARL administrator.']
   ],
   REPAIR_SHOP: [
     ['Incoming Requests', 'Review assistance requests sent to your shop.'],
     ['Mechanics', 'Manage mechanic profiles and availability.'],
     ['Service Jobs', 'Track accepted and ongoing jobs.'],
-    ['Shop History', 'Review completed assistance records.']
+    ['Shop History', 'Review completed assistance records.'],\n    ['Support', 'Send a message to the VAARL administrator.']
   ],
   ADMIN: [
     ['Account Management', 'Manage registered vehicle owners and repair shops.'],
@@ -246,7 +246,7 @@ function RoleDashboard({ user, signOut }) {
       {active === 'Dashboard' ? <>
       <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
       <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
-      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Feedback & Ratings' ? <OwnerFeedback /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : active === 'System Overview' ? <SystemStatusDashboard /> : active === 'Account Management' && role === 'ADMIN' ? <AdminAccountManagement /> : active === 'Audit Logs' && role === 'ADMIN' ? <AdminAuditLogs /> : active === 'Support Requests' && role === 'ADMIN' ? <AdminSupportRequests /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
+      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Feedback & Ratings' ? <OwnerFeedback /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : active === 'Support' ? <UserSupport /> : active === 'System Overview' ? <SystemStatusDashboard /> : active === 'Account Management' && role === 'ADMIN' ? <AdminAccountManagement /> : active === 'Audit Logs' && role === 'ADMIN' ? <AdminAuditLogs /> : active === 'Support Requests' && role === 'ADMIN' ? <AdminSupportRequests /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
       <footer className="dash-footer">VAARL Web System · Development Preview</footer>
     </div>
   </section>;
@@ -697,6 +697,25 @@ function AdminAccountManagement() {
     <div className="audit-table-wrap"><table className="audit-table"><thead><tr><th>Account</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th><th>Shop</th><th>Registered</th></tr></thead><tbody>{accounts.map(a=><tr key={a.id}><td>{a.full_name||'—'}</td><td>{a.username||'—'}</td><td>{a.email||'—'}</td><td>{a.phone||'—'}</td><td>{String(a.account_role||'').replaceAll('_',' ')}</td><td>{a.shop_name||'—'}</td><td>{a.created_at?new Date(a.created_at).toLocaleString():'—'}</td></tr>)}</tbody></table></div>}
     <div className="audit-pagination"><span>Page {page+1} of {Math.max(1,Math.ceil(total/size))}</span><div><button type="button" disabled={busy||page===0} onClick={()=>load(page-1,appliedQuery)}>← Previous</button><button type="button" disabled={busy||(page+1)*size>=total} onClick={()=>load(page+1,appliedQuery)}>Next →</button></div></div>
   </div>;
+}
+
+function UserSupport() {
+  const [form,setForm]=useState({subject:'',message:''});
+  const [busy,setBusy]=useState(false);
+  const [notice,setNotice]=useState('');
+  const [error,setError]=useState('');
+  async function submit(e){
+    e.preventDefault();setBusy(true);setNotice('');setError('');
+    try{
+      const token=sessionStorage.getItem('vaarl_auth_token');
+      const response=await fetch(API_BASE+'/api/support-requests',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify(form)});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.message||'Unable to submit support request.');
+      setNotice(data.message||'Support request sent.');setForm({subject:'',message:''});
+    }catch(e){setError(e.message||'Submission failed.');}
+    finally{setBusy(false);}
+  }
+  return <div className="dash-panel"><h2>VAARL Support</h2><p>Send a concern or question to the administrator.</p><form className="user-support-form" onSubmit={submit}><label>Subject<input required maxLength={160} value={form.subject} onChange={e=>setForm(v=>({...v,subject:e.target.value}))} placeholder="What do you need help with?"/></label><label>Message<textarea required maxLength={5000} rows={6} value={form.message} onChange={e=>setForm(v=>({...v,message:e.target.value}))} placeholder="Describe your concern or issue…"/></label><button type="submit" disabled={busy}>{busy?'Sending…':'Submit Support Request'}</button>{notice&&<p className="support-user-success">{notice}</p>}{error&&<p className="support-admin-error" role="alert">{error}</p>}</form></div>;
 }
 
 function AdminSupportRequests() {
