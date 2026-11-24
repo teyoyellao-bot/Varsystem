@@ -231,3 +231,34 @@ footer { border-top: 1px solid rgba(255,255,255,.08); padding: 22px 28px; text-a
 .audit-pagination>div{display:flex;gap:8px}
 .audit-pagination button:disabled{opacity:.45;cursor:not-allowed}
 @media(max-width:600px){.audit-module{padding:14px}.audit-toolbar label{align-items:flex-start;flex-direction:column}.audit-toolbar select{width:100%}.audit-pagination{align-items:flex-start;flex-direction:column}}
+
+
+/* Desktop Swing login parity pass: background, hero and compact login card. */
+.page { min-height:100vh; background:#031437 url('https://raw.githubusercontent.com/teyoyellao-bot/Varsystem/web-system-development/src/main/resources/varsystem/ui/auth/images/login-bg.jpg') center/cover fixed no-repeat; }
+.auth-wrap { max-width:none; min-height:100vh; margin:0; padding:30px clamp(24px,5.7vw,90px); grid-template-columns:minmax(0,1fr) minmax(360px,450px); gap:clamp(20px,4vw,70px); align-items:center; }
+.auth-intro { align-self:stretch; display:flex; flex-direction:column; justify-content:center; position:relative; min-width:0; }
+.auth-intro .eyebrow { display:none; }
+.auth-intro h1 { font-family:Philosopher,Marcellus,Candara,'Trebuchet MS',sans-serif; font-size:clamp(32px,4.6vw,60px); font-weight:800; line-height:1.1; letter-spacing:0; margin:0 0 12px; color:#fff; }
+.auth-intro h1 span { color:#1672ff; }
+.auth-intro > p { color:#fff; font-size:clamp(14px,1.5vw,19px); line-height:1.5; max-width:560px; margin:0; }
+.auth-benefits { display:flex; flex-wrap:wrap; gap:clamp(14px,2vw,32px); margin-top:auto; padding-top:42px; }
+.auth-benefits > div { display:flex; flex-direction:column; align-items:center; text-align:center; gap:7px; min-width:90px; flex:0 1 110px; }
+.benefit-icon { width:auto; height:auto; border:0; background:transparent; border-radius:0; font-size:32px; line-height:1; color:#65aaff; }
+.auth-benefits b { font-size:14px; color:white; }
+.auth-benefits small { color:#fff; font-size:13px; margin:0; }
+.auth-card { width:100%; max-width:450px; min-height:455px; border:3px solid #000; border-radius:40px; background:#021a4e; padding:18px 30px; box-shadow:none; color:#fff; justify-self:end; }
+.auth-tabs { background:rgba(255,255,255,.07); }
+.auth-tabs button.active { background:#1672ff; }
+.auth-card h2 { color:#fff; margin:16px 0 4px; font-size:30px; }
+.auth-subtitle { color:#fff; margin-bottom:18px; }
+.auth-card label { color:#fff; font-size:12px; }
+.auth-card input { background:#031437; border:1px solid rgba(255,255,255,.22); color:white; }
+.auth-card input:focus { border-color:#1672ff; box-shadow:0 0 0 2px rgba(22,114,255,.2); }
+.auth-card input::placeholder { color:#8ea9ce; }
+.auth-submit { background:#1672ff; color:white; border-radius:999px; }
+.auth-notice { color:#ff7a85; background:transparent; border:0; }
+.auth-footnote { color:#9fb5d5; }
+.forgot-row button { color:#cfe0ff; }
+.role-select button.selected { border-color:#1672ff; background:#1672ff20; color:white; }
+@media(max-width:850px) { .auth-wrap { grid-template-columns:1fr; min-height:100vh; padding:28px 20px; gap:24px; } .auth-intro { min-height:260px; } .auth-benefits { margin-top:24px; padding-top:0; justify-content:space-around; } .auth-card { justify-self:center; max-width:520px; } }
+@media(max-width:500px) { .auth-wrap { padding:18px 14px; } .auth-intro h1 { font-size:34px; } .auth-benefits > div { min-width:76px; flex-basis:90px; } .auth-benefits b,.auth-benefits small { font-size:11px; } .auth-card { border-radius:28px; padding:20px; } }
