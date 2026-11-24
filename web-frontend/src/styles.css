@@ -280,3 +280,11 @@ footer { border-top: 1px solid rgba(255,255,255,.08); padding: 22px 28px; text-a
 .support-admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .support-admin-error{color:#ff929d;background:rgba(255,80,100,.09);border:1px solid rgba(255,80,100,.2);padding:10px;border-radius:8px}
 @media(max-width:540px){.support-admin-head{align-items:flex-start}.support-admin-top{align-items:flex-start;flex-direction:column;gap:8px}}
+
+.user-support-form{display:grid;gap:14px;max-width:760px;margin-top:20px}
+.user-support-form label{display:grid;gap:7px;color:#cbd8e9;font-size:12px;font-weight:650}
+.user-support-form input,.user-support-form textarea{width:100%;border:1px solid rgba(255,255,255,.15);background:#07152c;border-radius:9px;padding:12px 13px;color:#f5f8ff;font:inherit;font-size:14px;resize:vertical}
+.user-support-form input:focus,.user-support-form textarea:focus{outline:none;border-color:#3c8cff;box-shadow:0 0 0 3px rgba(60,140,255,.12)}
+.user-support-form button{justify-self:start;background:#1675ef;color:white;cursor:pointer;padding:12px 16px}
+.user-support-form button:disabled{opacity:.5;cursor:wait}
+.support-user-success{color:#80e6ba;background:rgba(42,182,128,.1);border:1px solid rgba(42,182,128,.18);padding:10px;border-radius:8px}
