@@ -246,7 +246,7 @@ function RoleDashboard({ user, signOut }) {
       {active === 'Dashboard' ? <>
       <div className="dash-welcome"><div><small>WELCOME TO VAARL</small><h2>Good day, {user.username}.</h2><p>Choose a module below to get started.</p></div><div className="dash-graphic">V</div></div>
       <div className="dash-module-grid">{modules.map((m,i)=><button className="dash-module" key={m[0]} onClick={()=>setActive(m[0])}><span className="dash-module-number">0{i+1}</span><h3>{m[0]}</h3><p>{m[1]}</p><span className="dash-open">Open module ↗</span></button>)}</div>
-      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Feedback & Ratings' ? <OwnerFeedback /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : active === 'System Overview' ? <SystemStatusDashboard /> : active === 'Account Management' && role === 'ADMIN' ? <AdminAccountManagement /> : active === 'Audit Logs' && role === 'ADMIN' ? <AdminAuditLogs /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
+      </> : active === 'My Profile' ? <div className="dash-panel"><h2>Account Profile</h2><p><b>Username:</b> {user.username}</p><p><b>Email:</b> {user.email}</p><p><b>Role:</b> {roleLabels[role] || role}</p><p className="dash-hint">Profile editing will be connected to the account API in a later step.</p></div> : active === 'Find Repair Shops' ? <FindRepairShops /> : active === 'My Assistance Requests' ? <MyAssistanceRequests /> : active === 'Request History' ? <OwnerRequestHistory /> : active === 'Feedback & Ratings' ? <OwnerFeedback /> : active === 'Incoming Requests' ? <ShopIncomingRequests /> : active === 'Mechanics' ? <ShopMechanics /> : active === 'Service Jobs' ? <ShopServiceJobs /> : active === 'Shop History' ? <ShopHistory /> : active === 'System Overview' ? <SystemStatusDashboard /> : active === 'Account Management' && role === 'ADMIN' ? <AdminAccountManagement /> : active === 'Audit Logs' && role === 'ADMIN' ? <AdminAuditLogs /> : active === 'Support Requests' && role === 'ADMIN' ? <AdminSupportRequests /> : <div className="dash-panel"><div className="dash-module-number">VAARL MODULE</div><h2>{active}</h2><p>{modules.find(m=>m[0]===active)?.[1] || 'Account module'}</p><div className="dash-hint">Dashboard navigation is ready. Live database features for this module are the next integration step.</div><button className="dash-back" onClick={()=>setActive('Dashboard')}>← Back to Dashboard</button></div>}
       <footer className="dash-footer">VAARL Web System · Development Preview</footer>
     </div>
   </section>;
@@ -696,6 +696,40 @@ function AdminAccountManagement() {
     {busy?<div className="shops-state">Loading accounts…</div>:error?<div className="shops-state shops-error">{error}</div>:accounts.length===0?<div className="shops-state">No registered accounts found.</div>:
     <div className="audit-table-wrap"><table className="audit-table"><thead><tr><th>Account</th><th>Username</th><th>Email</th><th>Phone</th><th>Role</th><th>Shop</th><th>Registered</th></tr></thead><tbody>{accounts.map(a=><tr key={a.id}><td>{a.full_name||'—'}</td><td>{a.username||'—'}</td><td>{a.email||'—'}</td><td>{a.phone||'—'}</td><td>{String(a.account_role||'').replaceAll('_',' ')}</td><td>{a.shop_name||'—'}</td><td>{a.created_at?new Date(a.created_at).toLocaleString():'—'}</td></tr>)}</tbody></table></div>}
     <div className="audit-pagination"><span>Page {page+1} of {Math.max(1,Math.ceil(total/size))}</span><div><button type="button" disabled={busy||page===0} onClick={()=>load(page-1,appliedQuery)}>← Previous</button><button type="button" disabled={busy||(page+1)*size>=total} onClick={()=>load(page+1,appliedQuery)}>Next →</button></div></div>
+  </div>;
+}
+
+function AdminSupportRequests() {
+  const [items,setItems]=useState([]);
+  const [busy,setBusy]=useState(true);
+  const [error,setError]=useState('');
+  const [updating,setUpdating]=useState('');
+  async function load(){
+    setBusy(true);setError('');
+    try{
+      const token=sessionStorage.getItem('vaarl_auth_token');
+      const response=await fetch(API_BASE+'/api/support-requests',{headers:{Authorization:'Bearer '+token}});
+      const data=await response.json().catch(()=>[]);
+      if(!response.ok)throw new Error(data.message||'Could not load support requests.');
+      setItems(Array.isArray(data)?data:[]);
+    }catch(e){setError(e.message||'Load failed.');}
+    finally{setBusy(false);}
+  }
+  async function changeStatus(id,status){
+    setUpdating(id);setError('');
+    try{
+      const token=sessionStorage.getItem('vaarl_auth_token');
+      const response=await fetch(API_BASE+'/api/support-requests/'+encodeURIComponent(id)+'/status',{method:'PATCH',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({status})});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(data.message||'Update failed.');
+      await load();
+    }catch(e){setError(e.message||'Update failed.');}
+    finally{setUpdating('');}
+  }
+  useEffect(()=>{load();},[]);
+  return <div className="dash-panel"><div className="support-admin-head"><div><h2>Support Requests</h2><p>Review user reports and update their status.</p></div><button type="button" onClick={load} disabled={busy}>Refresh</button></div>
+    {error&&<p className="support-admin-error" role="alert">{error}</p>}
+    {busy?<p>Loading support requests…</p>:items.length===0?<p>No support requests found.</p>:<div className="support-admin-list">{items.map(item=><article className="support-admin-card" key={item.id}><div className="support-admin-top"><h3>{item.subject}</h3><span className={'support-status '+String(item.status||'').toLowerCase().replace(/ /g,'-')}>{item.status}</span></div><p className="support-admin-message">{item.message}</p><div className="support-admin-meta"><b>{item.name||'User'}</b> · {item.email||'No email'} · {item.submittedAt?new Date(item.submittedAt).toLocaleString():''}</div><div className="support-admin-actions"><button type="button" disabled={updating===item.id||item.status==='Pending'} onClick={()=>changeStatus(item.id,'Pending')}>Pending</button><button type="button" disabled={updating===item.id||item.status==='In Progress'} onClick={()=>changeStatus(item.id,'In Progress')}>In Progress</button><button type="button" disabled={updating===item.id||item.status==='Resolved'} onClick={()=>changeStatus(item.id,'Resolved')}>Resolved</button></div></article>)}</div>}
   </div>;
 }
 
