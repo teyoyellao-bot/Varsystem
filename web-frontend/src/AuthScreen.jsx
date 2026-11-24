@@ -315,7 +315,8 @@ function FindRepairShops() {
       } finally { if (!ignore) setBusy(false); }
     }
     load();
-    return () => { ignore = true; };
+    const timer = setInterval(load, 30000);
+    return () => { ignore = true; clearInterval(timer); };
   }, [search]);
 
   return <div className="shops-module">
@@ -393,7 +394,7 @@ function ShopIncomingRequests() {
     } catch (err) { setError(err.message || 'Could not connect to requests API.'); }
     finally { setBusy(false); }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); const timer=setInterval(load,30000); return () => clearInterval(timer); }, []);
   async function decide(id, decision) {
     setWorkingId(id); setNotice('');
     try {
@@ -437,7 +438,7 @@ function ShopMechanics() {
     } catch(err) { setError(err.message || 'Mechanics API error.'); }
     finally { setBusy(false); }
   }
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{load(); const timer=setInterval(load,30000); return ()=>clearInterval(timer);},[]);
   function resetForm(){setEditingId('');setForm({name:'',phone:'',availability:'Available'});}
   function startEdit(m){setEditingId(m.id);setForm({name:m.name||'',phone:m.phone||'',availability:m.availability||'Available'});setNotice('');}
   async function save(e){
@@ -563,7 +564,8 @@ function OwnerRequestHistory() {
       finally{if(!ignore)setBusy(false);}
     }
     load();
-    return ()=>{ignore=true;};
+    const timer=setInterval(load,30000);
+    return ()=>{ignore=true;clearInterval(timer);};
   },[]);
   const past=records.filter(r=>['Completed','Declined','Cancelled','Canceled'].includes(r.status));
   const filtered=past.filter(r=>[r.shopName,r.vehicle,r.problem,r.mechanicName,r.status,r.id].some(v=>String(v||'').toLowerCase().includes(search.toLowerCase())));
