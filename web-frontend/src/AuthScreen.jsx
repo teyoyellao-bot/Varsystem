@@ -9,7 +9,8 @@ const dashboardContent = {
     ['Find Repair Shops', 'Explore repair shops and their services.'],
     ['My Assistance Requests', 'Review the status of your vehicle assistance requests.'],
     ['Request History', 'See your past assistance activity.'],
-    ['Feedback & Ratings', 'Rate completed assistance.'],\n    ['Support', 'Send a message to the VAARL administrator.']
+    ['Feedback & Ratings', 'Rate completed assistance.'],
+    ['Support', 'Send a message to the VAARL administrator.']
   ],
   REPAIR_SHOP: [
     ['Incoming Requests', 'Review assistance requests sent to your shop.'],
